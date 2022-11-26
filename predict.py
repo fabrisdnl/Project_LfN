@@ -10,6 +10,7 @@ from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import f1_score
 from sklearn.exceptions import UndefinedMetricWarning
 import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
@@ -56,7 +57,7 @@ def load_label(file, variable_name="group"):
 
 def predict_cv(X, y, train_ratio=0.2, n_splits=10, random_state=0, C=1.):
     micro, macro = [], []
-    shuffle = ShuffleSplit(n_splits=n_splits, test_size=1-train_ratio, random_state=random_state)
+    shuffle = ShuffleSplit(n_splits=n_splits, test_size=1 - train_ratio, random_state=random_state)
     for train_index, test_index in shuffle.split(X):
         print(train_index.shape, test_index.shape)
         assert len(set(train_index) & set(test_index)) == 0
@@ -64,11 +65,11 @@ def predict_cv(X, y, train_ratio=0.2, n_splits=10, random_state=0, C=1.):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         clf = OneVsRestClassifier(
-                 LogisticRegression(
-                    C=C,
-                    solver="liblinear",
-                    multi_class="ovr"),
-                n_jobs=-1)
+            LogisticRegression(
+                C=C,
+                solver="liblinear",
+                multi_class="ovr"),
+            n_jobs=-1)
         clf.fit(X_train, y_train)
         y_score = clf.predict_proba(X_test)
         y_pred = construct_indicator(y_score, y_test)
@@ -79,35 +80,35 @@ def predict_cv(X, y, train_ratio=0.2, n_splits=10, random_state=0, C=1.):
         macro.append(ma)
     logger.info("%d fold validation, training ratio %f", len(micro), train_ratio)
     logger.info("Average micro %.2f, Average macro %.2f",
-            np.mean(micro) * 100,
-            np.mean(macro) * 100)
+                np.mean(micro) * 100,
+                np.mean(macro) * 100)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--label", type=str, required=True,
-            help="input file path for labels (.mat)")
+                        help="input file path for labels (.mat)")
     parser.add_argument("--embedding", type=str, required=True,
-            help="input file path for embedding (.npy)")
+                        help="input file path for embedding (.npy)")
     parser.add_argument("--matfile-variable-name", type=str, default='group',
-            help='variable name of adjacency matrix inside a .mat file.')
+                        help='variable name of adjacency matrix inside a .mat file.')
     parser.add_argument("--seed", type=int, required=True,
-            help="seed used for random number generator when randomly split data into training/test set.")
+                        help="seed used for random number generator when randomly split data into training/test set.")
     parser.add_argument("--start-train-ratio", type=int, default=10,
-            help="the start value of the train ratio (inclusive).")
+                        help="the start value of the train ratio (inclusive).")
     parser.add_argument("--stop-train-ratio", type=int, default=90,
-            help="the end value of the train ratio (inclusive).")
+                        help="the end value of the train ratio (inclusive).")
     parser.add_argument("--num-train-ratio", type=int, default=9,
-            help="the number of train ratio choosed from [train-ratio-start, train-ratio-end].")
+                        help="the number of train ratio choosed from [train-ratio-start, train-ratio-end].")
     parser.add_argument("--C", type=float, default=1.0,
-            help="inverse of regularization strength used in logistic regression.")
+                        help="inverse of regularization strength used in logistic regression.")
     parser.add_argument("--num-split", type=int, default=10,
-            help="The number of re-shuffling & splitting for each train ratio.")
+                        help="The number of re-shuffling & splitting for each train ratio.")
     args = parser.parse_args()
     logging.basicConfig(
-            #filename="%s.log" % args.embedding, filemode="w", # uncomment this to log to file
-            level=logging.INFO,
-            format='%(asctime)s %(message)s') # include timestamp
+        # filename="%s.log" % args.embedding, filemode="w", # uncomment this to log to file
+        level=logging.INFO,
+        format='%(asctime)s %(message)s')  # include timestamp
     logger.info("Loading label from %s...", args.label)
     label = load_label(file=args.label, variable_name=args.matfile_variable_name)
     logger.info("Label loaded!")
@@ -122,11 +123,11 @@ if __name__ == "__main__":
     else:
         # Load word2vec format
         embedding = load_w2v_feature(args.embedding)
-    logger.info("Network embedding loaded!")
+    logger.info("Network e embedding loaded!")
 
     train_ratios = np.linspace(args.start_train_ratio, args.stop_train_ratio,
-            args.num_train_ratio)
+                               args.num_train_ratio)
 
     for tr in train_ratios:
-        predict_cv(embedding, label, train_ratio=tr/100.,
-                n_splits=args.num_split, C=args.C, random_state=args.seed)
+        predict_cv(embedding, label, train_ratio=tr / 100.,
+                   n_splits=args.num_split, C=args.C, random_state=args.seed)

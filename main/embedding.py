@@ -25,4 +25,4 @@ if __name__ == "__main__":
             # Reading the .gml file
             G = nx.read_gml(file)
             # Displaying nodes
-            G.nodes
+            print(G.nodes())

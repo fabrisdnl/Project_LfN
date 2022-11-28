@@ -1,41 +1,37 @@
-import os
+#!/usr/bin/env python
+# encoding: utf-8
+# File Name: eigen.py
+# Author: Jiezhong Qiu
+# Create Time: 2017/07/13 16:05
+# TODO:
+
 import scipy.io
 import scipy.sparse as sparse
-from scipy.sparse import linalg
 from scipy.sparse import csgraph
 import numpy as np
-from matplotlib import pyplot as plt
-import networkx as nx
 import argparse
 import logging
 import theano
 from theano import tensor as T
 
 logger = logging.getLogger(__name__)
+theano.config.exception_verbosity = 'high'
 
 
-def load_adjacency_matrix(filename):
-    filename = '\\' + filename
-    # Gets the current working directory
-    current_directory = os.getcwd()
-    # Go up one directory from working directory and go in networks directory
-    os.chdir("..\\networks")
-    # Update the current location
-    current_directory = os.getcwd();
-    # Get a tuple of all the directories in the folder
-    o = [os.path.join(current_directory, o) for o in os.listdir(current_directory)
-         if os.path.isdir(os.path.join(current_directory, o))]
-    # Search the tuple for the directory you want and open the file
-    for item in o:
-        if os.path.exists(item + filename):
-            file = item + filename
-            # Reading the .gml file
-            G = nx.read_gml(file)
-            # Convert to adjacency matrix
-            data = nx.adjacency_matrix(G)
+def load_adjacency_matrix(file, variable_name="network"):
+    data = scipy.io.loadmat(file)
+    logger.info("loading mat file %s", file)
+    return data[variable_name]
 
-    logger.info("loading gml file %s", file)
-    return data
+
+def deepwalk_filter(evals, window):
+    for i in range(len(evals)):
+        x = evals[i]
+        evals[i] = 1. if x >= 1 else x * (1 - x ** window) / (1 - x) / window
+    evals = np.maximum(evals, 0)
+    logger.info("After filtering, max eigenvalue=%f, min eigenvalue=%f",
+                np.max(evals), np.min(evals))
+    return evals
 
 
 def approximate_normalized_graph_laplacian(A, rank, which="LA"):
@@ -44,6 +40,8 @@ def approximate_normalized_graph_laplacian(A, rank, which="LA"):
     # X = D^{-1/2} W D^{-1/2}
     X = sparse.identity(n) - L
     logger.info("Eigen decomposition...")
+    # evals, evecs = sparse.linalg.eigsh(X, rank,
+    #        which=which, tol=1e-3, maxiter=300)
     evals, evecs = sparse.linalg.eigsh(X, rank, which=which)
     logger.info("Maximum eigenvalue %f, minimum eigenvalue %f", np.max(evals), np.min(evals))
     logger.info("Computing D^{-1/2}U..")
@@ -52,25 +50,15 @@ def approximate_normalized_graph_laplacian(A, rank, which="LA"):
     return evals, D_rt_invU
 
 
-def deepwalk_filter(evals, window):
-    for i in range(len(evals)):
-        x = evals[i]
-        evals[i] = 1. if x >= 1 else x*(1-x**window) / (1-x) / window
-    evals = np.maximum(evals, 0)
-    logger.info("After filtering, max eigenvalue=%f, min eigenvalue=%f",
-            np.max(evals), np.min(evals))
-    return evals
-
-
 def approximate_deepwalk_matrix(evals, D_rt_invU, window, vol, b):
     evals = deepwalk_filter(evals, window=window)
     X = sparse.diags(np.sqrt(evals)).dot(D_rt_invU.T).T
     m = T.matrix()
-    mmT = T.dot(m, m.T) * (vol/b)
+    mmT = T.dot(m, m.T) * (vol / b)
     f = theano.function([m], T.log(T.maximum(mmT, 1)))
     Y = f(X.astype(theano.config.floatX))
     logger.info("Computed DeepWalk matrix with %d non-zero elements",
-            np.count_nonzero(Y))
+                np.count_nonzero(Y))
     return sparse.csr_matrix(Y)
 
 
@@ -81,18 +69,20 @@ def svd_deepwalk_matrix(X, dim):
 
 
 def netmf_large(args):
-    logger.info("Running NetMF framework for a large window size...")
+    logger.info("Running NetMF for a large window size...")
     logger.info("Window size is set to be %d", args.window)
-    # load adjacency matrix from the .gml file
-    A = load_adjacency_matrix(args.input)
-
+    # load adjacency matrix
+    A = load_adjacency_matrix(args.input,
+                              variable_name=args.matfile_variable_name)
     vol = float(A.sum())
     # perform eigen-decomposition of D^{-1/2} A D^{-1/2}
-    # keep top <rank value> eigenpairs
+    # keep top #rank eigenpairs
     evals, D_rt_invU = approximate_normalized_graph_laplacian(A, rank=args.rank, which="LA")
+
+    # approximate deepwalk matrix
     deepwalk_matrix = approximate_deepwalk_matrix(evals, D_rt_invU,
-            window=args.window,
-            vol=vol, b=args.negative)
+                                                  window=args.window,
+                                                  vol=vol, b=args.negative)
 
     # factorize deepwalk matrix with SVD
     deepwalk_embedding = svd_deepwalk_matrix(deepwalk_matrix, dim=args.dim)
@@ -110,7 +100,7 @@ def direct_compute_deepwalk_matrix(A, window, b):
     S = np.zeros_like(X)
     X_power = sparse.identity(n)
     for i in range(window):
-        logger.info("Compute matrix %d-th power", i+1)
+        logger.info("Compute matrix %d-th power", i + 1)
         X_power = X_power.dot(X)
         S += X_power
     S *= vol / window / b
@@ -123,40 +113,50 @@ def direct_compute_deepwalk_matrix(A, window, b):
 
 
 def netmf_small(args):
-    logger.info("Running NetMF framework for a small window size...")
+    logger.info("Running NetMF for a small window size...")
     logger.info("Window size is set to be %d", args.window)
-    # load adjacency matrix from the .gml file
-    A = load_adjacency_matrix(args.input)
+    # load adjacency matrix
+    A = load_adjacency_matrix(args.input,
+                              variable_name=args.matfile_variable_name)
     # directly compute deepwalk matrix
-    deepwalk_matrix = direct_compute_deepwalk_matrix(A, window=args.window, b=args.negative)
+    deepwalk_matrix = direct_compute_deepwalk_matrix(A,
+                                                     window=args.window, b=args.negative)
+
     # factorize deepwalk matrix with SVD
     deepwalk_embedding = svd_deepwalk_matrix(deepwalk_matrix, dim=args.dim)
     logger.info("Save embedding to %s", args.output)
     np.save(args.output, deepwalk_embedding, allow_pickle=False)
+    output = np.load('test.npy')
+    print(output)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=str, required=True,
-                        help=".gml input file path")
+                        help=".mat input file path")
+    parser.add_argument('--matfile-variable-name', default='network',
+                        help='variable name of adjacency matrix inside a .mat file.')
     parser.add_argument("--output", type=str, required=True,
                         help="embedding output file path")
+
     parser.add_argument("--rank", default=256, type=int,
-                        help="number of eigen-pairs used to approximate normalized graph laplacian.")
+                        help="#eigenpairs used to approximate normalized graph laplacian.")
     parser.add_argument("--dim", default=128, type=int,
                         help="dimension of embedding")
     parser.add_argument("--window", default=10,
                         type=int, help="context window size")
     parser.add_argument("--negative", default=1.0, type=float,
                         help="negative sampling")
+
     parser.add_argument('--large', dest="large", action="store_true",
-                        help="using netmf framework for large window size")
+                        help="using netmf for large window size")
     parser.add_argument('--small', dest="large", action="store_false",
-                        help="using netmf framework for small window size")
+                        help="using netmf for small window size")
     parser.set_defaults(large=True)
 
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')  # include timestamp
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(message)s')  # include timestamp
 
     if args.large:
         netmf_large(args)

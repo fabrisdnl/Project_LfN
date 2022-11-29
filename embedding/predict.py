@@ -3,7 +3,6 @@
 # File Name: predict.py
 # Author: Jiezhong Qiu
 # Create Time: 2017/07/17 21:57
-# TODO:
 
 import os
 import pickle as pkl

@@ -3,7 +3,8 @@
 # File Name: eigen.py
 # Author: Jiezhong Qiu
 # Create Time: 2017/07/13 16:05
-# TODO:
+
+import os
 
 import scipy.io
 import scipy.sparse as sparse
@@ -19,6 +20,7 @@ theano.config.exception_verbosity = 'high'
 
 
 def load_adjacency_matrix(file, variable_name="network"):
+    os.chdir("..\\datasets")
     data = scipy.io.loadmat(file)
     logger.info("loading mat file %s", file)
     return data[variable_name]
@@ -126,8 +128,6 @@ def netmf_small(args):
     deepwalk_embedding = svd_deepwalk_matrix(deepwalk_matrix, dim=args.dim)
     logger.info("Save embedding to %s", args.output)
     np.save(args.output, deepwalk_embedding, allow_pickle=False)
-    output = np.load('test.npy')
-    print(output)
 
 
 if __name__ == "__main__":

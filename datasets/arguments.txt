@@ -1,0 +1,8 @@
+--input blogcatalog.mat --dim 128 --window 1 --small --output embeddingBCsmall
+--input blogcatalog.mat --dim 128 --window 10 --rank 1024 --large --output embeddingBClarge
+--input PPI.mat --dim 128 --window 1 --small --output embeddingPPIsmall
+--input PPI.mat --dim 128 --window 10 --rank 1024 --large --output embeddingPPIlarge
+--input flickr.mat --dim 128 --window 1 --small --output embeddingFlickrsmall
+--input flickr.mat --dim 128 --window 10 --rank 1024 --large --output embeddingFlickrlarge
+--input wikipedia.mat --dim 128 --window 1 --small --output embeddingWikipediasmall
+--input wikipedia.mat --dim 128 --window 10 --rank 1024 --large --output embeddingWikipedialarge

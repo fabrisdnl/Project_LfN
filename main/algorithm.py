@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from karateclub import DeepWalk
+from karateclub import node_embedding as ne
 import math
 import argparse
 import logging
@@ -17,9 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def neighborhood(G, node, level):
-    path_lengths = nx.single_source_dijkstra_path_length(G, node)
-    return [node for node, length in path_lengths.items()
-            if length == level]
+    return nx.single_source_dijkstra_path_length(G, node, cutoff=level)
 
 
 def load_adjacency_matrix(file, variable_name="network"):
@@ -67,36 +66,21 @@ def nlc(args):
     print(list(nlc_indexes[:k]))
 
 
-def load_w2v_feature(file):
-    with open(file, "rb") as f:
-        nu = 0
-        for line in f:
-            content = line.strip().split()
-            nu += 1
-            if nu == 1:
-                n, d = int(content[0]), int(content[1])
-                feature = [[] for i in range(n)]
-                continue
-            index = int(content[0])
-            for x in content[1:]:
-                feature[index].append(float(x))
-    for item in feature:
-        assert len(item) == d
-    return np.array(feature, dtype=np.dtype(float))
-
-
-def load_netmf_embedding(args):
+def nlc_modified(args):
     G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
                                     create_using=nx.Graph)
-    logger.info("DeepWalk embedding of %s network", args.embedding)
-    embedding = load_w2v_feature(args.embedding)
-    return G, embedding
-
-
-def nlc_modified(args):
-    G, embedding = load_netmf_embedding(args)
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.matfile)
+    start_time = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    print("------- NetMF embedding in %s seconds ---------" % (time.time() - start_time))
+    # Computing k-core value of each node
     core_values = compute_k_shell_values(G)
+    # Computing the NLC index of each node
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+    logger.info("Computing NLC index of each node")
     for i in G:
         neighbors = neighborhood(G, i, level=1) # todo: decide which k-level neighborhood
         for j in neighbors:
@@ -105,14 +89,11 @@ def nlc_modified(args):
     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes
     k = args.top
-    print(list(nlc_indexes[:k]))
-
+    print(list(nlc_indexes.keys())[:k])
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--embedding", type=str, default=None,
-                        help = ".npy input file path of embedded network")
     parser.add_argument("--matfile", type=str, required=True,
                         help=".mat input file path of original network")
     parser.add_argument('--matfile-variable-name', default='network',
@@ -123,12 +104,12 @@ if __name__ == "__main__":
                         help="top influential nodes output file path")
     parser.add_argument('--algorithm', dest="algorithm", action="store_true",
                         help="using NLC to compute influence of nodes")
-    parser.set_defaults(algorithm=True)
+    parser.set_defaults(algorithm=False)
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(message)s')  # include timestamp
-    if not args.embedding:
+    if args.algorithm:
         logger.info("Algorithm NLC starting")
         start = time.time()
         nlc(args)
@@ -136,5 +117,7 @@ if __name__ == "__main__":
     else:
         logger.info("Algorithm NLC modified starting")
         start = time.time()
-        nlc_modified(args) #todo: lettura embedding file .npy
-        logger.info("Algorithm NLC modified concluded" % (time.time() - start))
+        nlc_modified(args)  # todo: lettura embedding file .npy
+        logger.info("Algorithm NLC modified concluded in %s" % (time.time() - start))
+
+

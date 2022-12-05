@@ -95,35 +95,26 @@ def find_nodes(h, it):
 
 
 def kShell_values(h):
-    start = time.time()
-    it = 1
-    tmp = []
-    buckets = []
-
-    while (1):
+    it = 0
+    core_values = dict()
+    h = G.copy()
+    
+    if len(list(nx.selfloop_edges(h))) != 0:
+        h.remove_edges_from(nx.selfloop_edges(h))
+        
+    while(1):
         flag = check(h, it)
         if (flag == 0):
+            #print("bucket " + str(it) + " added")
             it += 1
-            buckets.append(tmp)
-            tmp = []
         if (flag == 1):
             node_set = find_nodes(h, it)
             for each in node_set:
                 h.remove_node(each)
-                tmp.append(each)
+                core_values[each] = it
         if (h.number_of_nodes() == 0):
-            buckets.append(tmp)
             break
 
-    core_values = dict()
-
-    value = 1
-
-    for b in buckets:
-        for n in b:
-            core_values[n] = value
-        value += 1
-    logger.info(("kShell in %s seconds") % (time.time()-start))
     return core_values
 
 def nlc_modified(args):

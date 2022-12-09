@@ -2,6 +2,7 @@ import networkx as nx
 import ndlib.models.ModelConfig as mc
 import ndlib.models.epidemics as ep
 import matplotlib.pyplot
+from matplotlib.pyplot import cm
 import numpy as np
 
 def get_mean_degrees(g):
@@ -48,7 +49,7 @@ def get_sir_influent(g, num_iter, num_output):
     sorted_d = sorted(d.items(), key=lambda kv: kv[1])
     sorted_d.reverse()
     
-    return sorted_d[:min(len(sorted_d), number)]
+    return [n[0] for n in sorted_d][:min(len(sorted_d), num_output)]
 
 def compute_sets_si(set_list, betah, interval):
     beta = 2 * betah
@@ -71,7 +72,7 @@ def compute_sets_si(set_list, betah, interval):
     return results
 
 def print_influence(sets):
-    color = iter(cm.rainbow(np.linspace(0, 1, n)))
+    color = iter(cm.rainbow(np.linspace(0, 1, len(sets))))
     
     for y in sets:
        c = next(color)

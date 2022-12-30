@@ -24,7 +24,7 @@ def neighborhood(G, node, level):
 
 
 def load_adjacency_matrix(file, variable_name="network"):
-    os.chdir("..\\datasets")
+    os.chdir("../datasets")
     data = scipy.io.loadmat(file)
     logger.info("loading mat file %s", file)
     return data[variable_name]
@@ -148,13 +148,16 @@ def local_rasp(args):
                                     create_using=nx.Graph)
     lrasp = dict.fromkeys(list(G.nodes), 0)
     for i in G:
-        neighbors = neighborhood(G, i, level=3)
+        neighbors = neighborhood(G, i, level=2)
         H = G.subgraph(neighbors.keys())
-        asp_value_H = asp(H)
-        lrasp[i] = math.abs(asp(H.remove_node(i)) - asp_value_H) / asp_value_H
+        if H is not None:
+            H_i = (H.copy()).remove_node(i)
+            if H_i is not None:
+                asp_value_H = asp(H)
+                lrasp[i] = abs(asp(H_i) - asp_value_H) / asp_value_H
     lrasp = dict(sorted(lrasp.items(), key=operator.itemgetter(1), reverse=True))
     k = args.top
-    print(list(nlc_indexes.keys())[:k])
+    print(list(lrasp.keys())[:k])
 
 
 def nlc_modified(args):

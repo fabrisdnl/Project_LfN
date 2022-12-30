@@ -1,4 +1,5 @@
 # In this file there will be the main algorithm
+import collections
 import operator
 import os
 import time
@@ -66,7 +67,7 @@ def nlc(args):
     core_values = compute_k_core_values(G)
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     for i in G:
-        neighbors = neighborhood(G, i, level=1) # todo: decide which k-level neighborhood
+        neighbors = neighborhood(G, i, level=1)
         for j in neighbors:
             nlc_indexes[i] += (core_values[i] * math.exp(- np.linalg.norm(deepwalk_graph[i] - deepwalk_graph[j])))
     # sorting in descending order the nodes based on their NLC index  values
@@ -77,45 +78,54 @@ def nlc(args):
     print(list(nlc_indexes[:k]))
 
 
-def check(h, d):
-    f = 0
-    for i in h.nodes():
-        if (h.degree(i) <= d):
-            f = 1
-            break
-    return f
-
-
-def find_nodes(h, it):
-    s = []
-    for i in h.nodes():
-        if (h.degree(i) <= it):
-            s.append(i)
-    return s
-
-
-def kShell_values(h):
-    it = 0
-    core_values = dict()
-    h = G.copy()
-    
-    if len(list(nx.selfloop_edges(h))) != 0:
-        h.remove_edges_from(nx.selfloop_edges(h))
-        
-    while(1):
-        flag = check(h, it)
-        if (flag == 0):
-            #print("bucket " + str(it) + " added")
-            it += 1
-        if (flag == 1):
-            node_set = find_nodes(h, it)
-            for each in node_set:
-                h.remove_node(each)
-                core_values[each] = it
-        if (h.number_of_nodes() == 0):
-            break
-
-    return core_values
+# def check(h, d):
+#     f = 0
+#     for i in h.nodes():
+#         if (h.degree(i) <= d):
+#             f = 1
+#             break
+#     return f
+#
+#
+# def find_nodes(h, it):
+#     s = []
+#     for i in h.nodes():
+#         if (h.degree(i) <= it):
+#             s.append(i)
+#     return s
+#
+#
+# def kShell_values(h):
+#     start = time.time()
+#     it = 1
+#     tmp = []
+#     buckets = []
+#
+#     while (1):
+#         flag = check(h, it)
+#         if (flag == 0):
+#             it += 1
+#             buckets.append(tmp)
+#             tmp = []
+#         if (flag == 1):
+#             node_set = find_nodes(h, it)
+#             for each in node_set:
+#                 h.remove_node(each)
+#                 tmp.append(each)
+#         if (h.number_of_nodes() == 0):
+#             buckets.append(tmp)
+#             break
+#
+#     core_values = dict()
+#
+#     value = 1
+#
+#     for b in buckets:
+#         for n in b:
+#             core_values[n] = value
+#         value += 1
+#     logger.info(("kShell in %s seconds") % (time.time()-start))
+#     return core_values
 
 def nlc_modified(args):
     G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
@@ -130,29 +140,118 @@ def nlc_modified(args):
     # Precomputing euclidean distances between nodes in embedding
     distances = precomputing_euclidean(embedding)
     # Computing k-core value of each node
-    #core_values = compute_k_core_values(G)
-    core_values = kShell_values(G)
+    core_values = compute_k_core_values(G)
+    # core_values = kShell_values(G)
     # mean_core_values = statistics.mean(list(core_values.values()))
     # Computing degree centrality for nodes
-    # start_time2 = time.time()
-    # degree_centrality = nx.degree_centrality(G)
-    # logger.info("Computing degree centrality in %s seconds" % (time.time() - start_time2))
+    start_time2 = time.time()
+    degree_centrality = nx.degree_centrality(G)
+    mean_degreecentrality = statistics.mean(list(degree_centrality.values()))
+    logger.info("Computing degree centrality in %s seconds" % (time.time() - start_time2))
     # Computing betweenness centrality for nodes
-    # start_time3 = time.time()
-    # degree_centrality = nx.betweenness_centrality(G)
-    # logger.info("Computing betweenness centrality in %s seconds" % (time.time() - start_time3))
+    #start_time3 = time.time()
+    #beetweennes = nx.betweenness_centrality(G)
+    #mean_beetweennes = statistics.mean(list(beetweennes.values()))
+    #logger.info("Computing betweenness centrality in %s seconds" % (time.time() - start_time3))
     # Computing the NLC index of each node
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     logger.info("Computing NLC index of each node")
     for i in G:
-        neighbors = neighborhood(G, i, level=3) # todo: decide which k-level neighborhood
-        for j in neighbors:
-            nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
+        if degree_centrality[i] > mean_degreecentrality:
+            neighbors = neighborhood(G, i, level=3)
+            for j in neighbors:
+                nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
     # sorting in descending order the nodes based on their NLC index  values
     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes
     k = args.top
     print(list(nlc_indexes.keys())[:k])
+
+
+def nlc_modified_second(args):
+    G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
+                                    create_using=nx.Graph)
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.matfile)
+    start_time1 = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+    # Precomputing euclidean distances between nodes in embedding
+    distances = precomputing_euclidean(embedding)
+    # Computing k-core value of each node
+    core_values = compute_k_core_values(G)
+    # core_values = kShell_values(G)
+    # mean_core_values = statistics.mean(list(core_values.values()))
+    # Computing degree centrality for nodes
+    #start_time2 = time.time()
+    #degree_centrality = nx.degree_centrality(G)
+    #neighborhood_degree_centrality = dict.fromkeys(core_values.keys(), 0)
+    #logger.info("Computing degree centrality in %s seconds" % (time.time() - start_time2))
+    # Computing degree for each nodes
+    start_time4 = time.time()
+    degrees = {node: val for (node, val) in G.degree()}
+    logger.info("Computing degree of each node in %s seconds" % (time.time() - start_time4))
+    # Computing betweenness centrality for nodes
+    # start_time3 = time.time()
+    # beetweennes = nx.betweenness_centrality(G)
+    # mean_beetweennes = statistics.mean(list(beetweennes.values()))
+    # logger.info("Computing betweenness centrality in %s seconds" % (time.time() - start_time3))
+    # Computing the NLC index of each node
+    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+    logger.info("Computing NLC index of each node")
+    for i in G:
+        neighbors = neighborhood(G, i, level=3)
+        for j in neighbors:
+            nlc_indexes[i] += (core_values[i] * math.exp(distances[i, j]))
+    # sorting in descending order the nodes based on their NLC index  values and degrees vector
+    nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
+    degrees = dict(sorted(degrees.items(), key=operator.itemgetter(1), reverse=True))
+    # returning top 10 influential nodes
+    result = dict.fromkeys(nlc_indexes.keys(), 0)
+    for node in result:
+        result[node] = list(nlc_indexes.keys()).index(node) + list(degrees.keys()).index(node)
+    result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
+    k = args.top
+    print(list(result.keys())[:k])
+
+
+def gravity_model_modified(args):
+    G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
+                                    create_using=nx.Graph)
+    nodes = G.number_of_nodes()
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.matfile)
+    start_time1 = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+    # Precomputing euclidean distances between nodes in embedding
+    distances = precomputing_euclidean(embedding)
+    # Computing the degree of each node
+    degrees = {node: val for (node, val) in G.degree()}
+    # Computing k-core value of each node
+    core_values = compute_k_core_values(G)
+    ks_max = max(core_values.values())
+    ks_min = min(core_values.values())
+    attraction_coefficient = dict()
+    force_node = dict()
+    # K-SHell based on gravity centrality with NetMF embedding for distances
+    KSGCNetMF = dict.fromkeys(core_values.keys(), 0)
+    for i in G:
+        neighbors = neighborhood(G, i, level=3) # Computing 3rd-order neighborhood of node i
+        for j in neighbors:
+            alias = (i, j)
+            attraction_coefficient[alias] = math.exp((core_values[i] - core_values[j]) / (ks_max - ks_min))
+            force_node[alias] = attraction_coefficient[alias] * ((degrees[i] * degrees[j]) / distances[alias])
+            KSGCNetMF[i] += force_node[alias]
+    # sorting in descending order
+    nlc_indexes = dict(sorted(KSGCNetMF.items(), key=operator.itemgetter(1), reverse=True))
+    # returning top 10 influential nodes
+    k = args.top
+    print(list(KSGCNetMF.keys())[:k])
 
 
 if __name__ == "__main__":
@@ -178,9 +277,15 @@ if __name__ == "__main__":
         nlc(args)
         logger.info("Algorithm NLC concluded in %s seconds" % (time.time() - start))
     else:
-        logger.info("Algorithm NLC modified starting")
+        logger.info("Algorithm NLC second modified starting")
         start = time.time()
-        nlc_modified(args)  # todo: lettura embedding file .npy
-        logger.info("Algorithm NLC modified concluded in %s seconds" % (time.time() - start))
+        nlc_modified_second(args)
+        logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
+    #else:
+    #    logger.info("Algorithm gravity model KSGCNetMF starting")
+    #    start = time.time()
+    #    gravity_model_modified(args)
+    #    logger.info("Algorithm gravity model KSGCNetMF concluded in %s seconds" % (time.time() - start))
+
 
 

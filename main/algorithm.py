@@ -128,15 +128,30 @@ def nlc(args):
 #     return core_values
 
 
-def asp(G):
-    n = G.number_of_nodes()
+def asp_s(H, G):
+    n = H.number_of_nodes()
     asp_value = 0
-    if not (nx.is_connected(G)):
+    if not (nx.is_connected(H)):
         diameter = nx.diameter(G)
-    for i in G:
-        for j in G:
-            if nx.has_path(G, source=i, target=j):
-                asp_value += nx.shortest_path_length(G, source=i, target=j)
+    for i in H:
+        for j in H:
+            if nx.has_path(H, source=i, target=j):
+                asp_value += nx.shortest_path_length(H, source=i, target=j)
+            else:
+                asp_value += diameter
+    asp_value = asp_value / (n * (n-1))
+    return asp_value
+
+
+def asp(H):
+    n = H.number_of_nodes()
+    asp_value = 0
+    if not (nx.is_connected(H)):
+        diameter = nx.diameter(H)
+    for i in H:
+        for j in H:
+            if nx.has_path(H, source=i, target=j):
+                asp_value += nx.shortest_path_length(H, source=i, target=j)
             else:
                 asp_value += diameter
     asp_value = asp_value / (n * (n-1))
@@ -151,11 +166,13 @@ def local_rasp(args):
         neighbors = neighborhood(G, i, level=2)
         H = G.subgraph(neighbors.keys())
         if H is not None:
-            H_i = (H.copy()).remove_node(i)
+            H_i = H.copy()
+            H_i.remove_node(i)
             if H_i is not None:
                 asp_value_H = asp(H)
-                lrasp[i] = abs(asp(H_i) - asp_value_H) / asp_value_H
+                lrasp[i] = abs(asp_s(H_i, H) - asp_value_H) / asp_value_H
     lrasp = dict(sorted(lrasp.items(), key=operator.itemgetter(1), reverse=True))
+    print(lrasp)
     k = args.top
     print(list(lrasp.keys())[:k])
 

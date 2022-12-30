@@ -127,6 +127,36 @@ def nlc(args):
 #     logger.info(("kShell in %s seconds") % (time.time()-start))
 #     return core_values
 
+
+def asp(G):
+    n = G.number_of_nodes()
+    asp_value = 0
+    if not (nx.is_connected(G)):
+        diameter = nx.diameter(G)
+    for i in G:
+        for j in G:
+            if nx.has_path(G, source=i, target=j):
+                asp_value += nx.shortest_path_length(G, source=i, target=j)
+            else:
+                asp_value += diameter
+    asp_value = asp_value / (n * (n-1))
+    return asp_value
+
+
+def local_rasp(args):
+    G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
+                                    create_using=nx.Graph)
+    lrasp = dict.fromkeys(list(G.nodes), 0)
+    for i in G:
+        neighbors = neighborhood(G, i, level=3)
+        H = G.subgraph(neighbors.keys())
+        asp_value_H = asp(H)
+        lrasp[i] = math.abs(asp(H.remove_node(i)) - asp_value_H) / asp_value_H
+    lrasp = dict(sorted(lrasp.items(), key=operator.itemgetter(1), reverse=True))
+    k = args.top
+    print(list(nlc_indexes.keys())[:k])
+
+
 def nlc_modified(args):
     G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
                                     create_using=nx.Graph)
@@ -276,11 +306,16 @@ if __name__ == "__main__":
         start = time.time()
         nlc(args)
         logger.info("Algorithm NLC concluded in %s seconds" % (time.time() - start))
+    # else:
+    #     logger.info("Algorithm NLC second modified starting")
+    #     start = time.time()
+    #     nlc_modified_second(args)
+    #     logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
     else:
-        logger.info("Algorithm NLC second modified starting")
+        logger.info("Algorithm LRASP starting")
         start = time.time()
-        nlc_modified_second(args)
-        logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
+        local_rasp(args)
+        logger.info("Algorithm LRASP concluded in %s seconds" % (time.time() - start))
     #else:
     #    logger.info("Algorithm gravity model KSGCNetMF starting")
     #    start = time.time()

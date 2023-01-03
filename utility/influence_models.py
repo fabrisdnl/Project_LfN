@@ -1,7 +1,7 @@
 import networkx as nx
 import ndlib.models.ModelConfig as mc
 import ndlib.models.epidemics as ep
-import matplotlib.pyplot
+import matplotlib.pyplot as plt
 from matplotlib.pyplot import cm
 import numpy as np
 
@@ -16,10 +16,10 @@ def get_mean_degrees(g):
     
     return [mean_degree / len(degrees), mean_square_degree / len(degrees)]
 
-def get_sir_influent(g, num_iter, num_output):
-    md, msd = get_mean_degrees(g)
+def get_sir_influent(g, betah, num_iter, num_output):
     
-    beta = 1.5 * md / msd
+    start_time = time.time()
+    beta = 1.5 * betah
     gamma = 1
     d = dict()
     for n in nodes:
@@ -48,6 +48,7 @@ def get_sir_influent(g, num_iter, num_output):
 
     sorted_d = sorted(d.items(), key=lambda kv: kv[1])
     sorted_d.reverse()
+    print("computation: %s seconds" % (time.time() - start_time))
     
     return [n[0] for n in sorted_d][:min(len(sorted_d), num_output)]
 
@@ -71,14 +72,29 @@ def compute_sets_si(set_list, betah, interval):
   
     return results
 
-def print_influence(sets):
+def print_influence(sets, labels):
     color = iter(cm.rainbow(np.linspace(0, 1, len(sets))))
-    
-    for y in sets:
+    #s = ["SIR", "NLC", "Gravity", "LRASP"];
+    for i in range(len(sets)):
        c = next(color)
-       plt.plot(y, c=c)
+       plt.plot(sets[i], c=c, label=labels[i])
     
     #TO DO: send sets as dictionary with key representing label of printed data
     plt.ylabel('num_infected')
     plt.xlabel('iterations')
+    plt.legend()
     plt.show()
+
+def check_results(G, num, sets_indexes):
+    mean_degree, mean_square_degree = get_mean_degrees(G)
+    betah = mean_degree / mean_square_degree
+    
+    sir_output = get_sir_influent(G, betah, 1, num)
+    sets = [sir_output[:num]]
+    
+    for s in sets_indexes:
+        sets.append(s[:num])
+    
+    labels = = ["SIR", "NLC", "Gravity", "LRASP"];
+    si_output = compute_sets_si(sets, betah, 30)
+    print_influence(si_output, labels[:len(si_output)])

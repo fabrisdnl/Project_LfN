@@ -218,6 +218,75 @@ def nlc_modified(args):
     print(list(nlc_indexes.keys())[:k])
 
 
+def kdec(args):
+    G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
+                                    create_using=nx.Graph)
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.matfile)
+    start_time1 = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+    # Precomputing euclidean distances between nodes in embedding
+    distances = precomputing_euclidean(embedding)
+    # Computing k-core value of each node
+    core_values = compute_k_core_values(G)
+    # Computing degrees
+    degrees = {node: deg for (node, deg) in G.degree()}
+    # Computing weights
+    weights = {key: core_values[key] * degrees[key] for key in core_values}
+    # print(weights)
+    # KDEC structure
+    kdec = dict.fromkeys(core_values.keys(), 0.0);
+    for i in G:
+        neighbors = neighborhood(G, i, level=3)
+        for j in neighbors:
+            eff_ij = (1 - math.log(1 / degrees[j]))
+            kdec[i] += ((weights[i] * weights[j]) / (math.pow(eff_ij, 2)))
+    # sorting in descending order the nodes based on their values
+    kdec = dict(sorted(kdec.items(), key=operator.itemgetter(1), reverse=True))
+    # returning top 10 influential nodes
+    k = args.top
+    print(list(kdec.keys())[:k])
+
+
+def nlc_kdec(args):
+    G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
+                                    create_using=nx.Graph)
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.matfile)
+    start_time1 = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+    # Precomputing euclidean distances between nodes in embedding
+    distances = precomputing_euclidean(embedding)
+    # Computing k-core value of each node
+    core_values = compute_k_core_values(G)
+    # Computing degrees
+    degrees = {node: deg for (node, deg) in G.degree()}
+    # Computing weights
+    weights = {key: core_values[key] * degrees[key] for key in core_values}
+    # print(weights)
+    # KDEC structure
+    nlckdec = dict.fromkeys(core_values.keys(), 0.0);
+    for i in G:
+        neighbors = neighborhood(G, i, level=3)
+        F_ji = 0
+        for j in neighbors:
+            eff_ij = (1 - math.log(1 / degrees[j]))
+            nlckdec[i] += (((weights[i] * weights[j]) / (math.pow(eff_ij, 2)))) * math.exp(distances[i,j])
+
+    # sorting in descending order the nodes based on their values
+    nlckdec = dict(sorted(nlckdec.items(), key=operator.itemgetter(1), reverse=True))
+    # returning top 10 influential nodes
+    k = args.top
+    print(list(kdec.keys())[:k])
+
+
+
 def nlc_modified_second(args):
     G = nx.from_scipy_sparse_matrix(load_adjacency_matrix(args.matfile, variable_name=args.matfile_variable_name),
                                     create_using=nx.Graph)
@@ -331,16 +400,25 @@ if __name__ == "__main__":
     #     start = time.time()
     #     nlc_modified_second(args)
     #     logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
-    else:
-        logger.info("Algorithm LRASP starting")
-        start = time.time()
-        local_rasp(args)
-        logger.info("Algorithm LRASP concluded in %s seconds" % (time.time() - start))
+    # else:
+    #      logger.info("Algorithm LRASP starting")
+    #      start = time.time()
+    #      local_rasp(args)
+    #      logger.info("Algorithm LRASP concluded in %s seconds" % (time.time() - start))
     #else:
     #    logger.info("Algorithm gravity model KSGCNetMF starting")
     #    start = time.time()
     #    gravity_model_modified(args)
     #    logger.info("Algorithm gravity model KSGCNetMF concluded in %s seconds" % (time.time() - start))
-
+    else:
+        logger.info("Algorithm KDEC starting")
+        start = time.time()
+        kdec(args)
+        logger.info("Algorithm KDEC concluded in %s seconds" % (time.time() - start))
+    # else:
+    #     logger.info("Algorithm NLC KDEC starting")
+    #     start = time.time()
+    #     nlc_kdec(args)
+    #     logger.info("Algorithm NLC KDEC concluded in %s seconds" % (time.time() - start))
 
 

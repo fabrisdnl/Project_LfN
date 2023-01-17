@@ -339,13 +339,57 @@ def nlc_modified_second(args):
         neighbors = neighborhood(G, i, level=3)
         for j in neighbors:
             nlc_indexes[i] += (core_values[i] * math.exp(distances[i, j]))
-    # sorting in descending order the nodes based on their NLC index  values and degrees vector
-    nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
-    degrees = dict(sorted(degrees.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes
     result = dict.fromkeys(nlc_indexes.keys(), 0)
     for node in result:
-        result[node] = list(nlc_indexes.keys()).index(node) + list(degrees.keys()).index(node)
+        result[node] = nlc_indexes[node] * degrees[node]
+    result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
+    k = args.top
+    print(list(result.keys())[:k])
+
+
+# ---------------------------------------------------------------
+#
+# NLC modified third algorithm to obtain the influence of nodes,
+# considering the ratio between the node's degree and the total
+# degree of neighborhood of each node.
+# @param: args - arguments from command line
+# Prints the top K influential nodes in the graph
+# ---------------------------------------------------------------
+def nlc_modified_third(args):
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.matfile)
+    start_time1 = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+    G.remove_edges_from(list(nx.selfloop_edges(G)))
+    # Precomputing euclidean distances between nodes in embedding
+    distances = precomputing_euclidean(embedding)
+    # Computing k-core value of each node
+    core_values = compute_k_core_values(G)
+    # Computing degree for each node
+    start_time4 = time.time()
+    degrees = {node: val for (node, val) in G.degree()}
+    logger.info("Computing degree of each node in %s seconds" % (time.time() - start_time4))
+    # Computing the NLC index of each node
+    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+    neighborhood_degree = dict.copy(nlc_indexes)
+    influence = dict.copy(nlc_indexes)
+    logger.info("Computing NLC index and degree ratio of each node")
+    for i in G:
+        neighbors = neighborhood(G, i, level=3)
+        neighborhood_degree[i] += degrees[i]
+        for j in neighbors:
+            nlc_indexes[i] += (core_values[i] * math.exp(distances[i, j]))
+            neighborhood_degree[i] += degrees[j]
+        influence[i] = degrees[i] / neighborhood_degree[i]
+    # returning top 10 influential nodes
+    result = dict.fromkeys(nlc_indexes.keys(), 0)
+    for node in result:
+        result[node] = nlc_indexes[node] * influence[node]
     result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
     k = args.top
     print(list(result.keys())[:k])
@@ -482,16 +526,21 @@ if __name__ == "__main__":
     #     start = time.time()
     #     nlc_modified(args)
     #     logger.info("Algorithm NLC modified concluded in %s seconds" % (time.time() - start))
-    # else:
-    #     logger.info("Algorithm NLC second modified starting")
-    #     start = time.time()
-    #     nlc_modified_second(args)
-    #     logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
     else:
-         logger.info("Algorithm LRASP starting")
-         start = time.time()
-         local_rasp(args)
-         logger.info("Algorithm LRASP concluded in %s seconds" % (time.time() - start))
+        logger.info("Algorithm NLC second modified starting")
+        start = time.time()
+        nlc_modified_second(args)
+        logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
+    # else:
+    #     logger.info("Algorithm NLC third modified starting")
+    #     start = time.time()
+    #     nlc_modified_third(args)
+    #     logger.info("Algorithm NLC third modified concluded in %s seconds" % (time.time() - start))
+    # else:
+    #      logger.info("Algorithm LRASP starting")
+    #      start = time.time()
+    #      local_rasp(args)
+    #      logger.info("Algorithm LRASP concluded in %s seconds" % (time.time() - start))
     #else:
     #    logger.info("Algorithm gravity model KSGCNetMF starting")
     #    start = time.time()

@@ -40,6 +40,23 @@ def load_graph(file, variable_name="network"):
     G = nx.relabel_nodes(G, mapping)
     return G
 
+
+# ---------------------------------------------------------------
+#
+# Function to load the specified dataset and place it in a
+# NetworkX Graph structure.
+# @param: file - the name of the input file
+# @param: variable_name - data structure
+# @return: G - NetworkX graph of the dataset
+# ---------------------------------------------------------------
+def load_default_graph(file, variable_name="network"):
+    os.chdir("../datasets")
+    raw_data = scipy.io.loadmat(file, squeeze_me=True)
+    data = raw_data[variable_name]
+    logger.info("loading mat file %s", file)
+    G = nx.to_networkx_graph(data, create_using=nx.Graph, multigraph_input=False)
+    return G
+
 # ---------------------------------------------------------------
 #
 # Function to find the neighborhood of a node, which can be of
@@ -48,12 +65,19 @@ def load_graph(file, variable_name="network"):
 # @param: node - the node of which we have to find neighbors
 # @param: level - the level specifying the cutoff on path length
 #                 from initial node
-# @return: res - all the nodes being in a level-neighborhood
+# @return: res - all the nodes being in a level-neighborhood (does
+#                nor return the initial node in the neighborhood)
 # ---------------------------------------------------------------
 def neighborhood(G, node, level):
     res = nx.single_source_dijkstra_path_length(G, node, cutoff=level)
     del res[node]
     return res
+
+# does return the initial node as part of the neighborhood
+def neighborhood_including_node(G, node, level):
+    res = nx.single_source_dijkstra_path_length(G, node, cutoff=level)
+    return res
+
 
 # ---------------------------------------------------------------
 #
@@ -204,10 +228,10 @@ def asp(H):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def local_rasp(args):
-    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_default_graph(args.matfile, variable_name=args.matfile_variable_name)
     lrasp = dict.fromkeys(list(G.nodes), 0)
     for i in G:
-        neighbors = neighborhood(G, i, level=2)
+        neighbors = neighborhood_including_node(G, i, level=2)
         H = G.subgraph(neighbors.keys())
         if H is not None:
             H_i = H.copy()
@@ -453,21 +477,21 @@ if __name__ == "__main__":
         start = time.time()
         nlc(args)
         logger.info("Algorithm NLC concluded in %s seconds" % (time.time() - start))
-    else:
-        logger.info("Algorithm NLC modified starting")
-        start = time.time()
-        nlc_modified(args)
-        logger.info("Algorithm NLC modified concluded in %s seconds" % (time.time() - start))
+    # else:
+    #     logger.info("Algorithm NLC modified starting")
+    #     start = time.time()
+    #     nlc_modified(args)
+    #     logger.info("Algorithm NLC modified concluded in %s seconds" % (time.time() - start))
     # else:
     #     logger.info("Algorithm NLC second modified starting")
     #     start = time.time()
     #     nlc_modified_second(args)
     #     logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
-    # else:
-    #      logger.info("Algorithm LRASP starting")
-    #      start = time.time()
-    #      local_rasp(args)
-    #      logger.info("Algorithm LRASP concluded in %s seconds" % (time.time() - start))
+    else:
+         logger.info("Algorithm LRASP starting")
+         start = time.time()
+         local_rasp(args)
+         logger.info("Algorithm LRASP concluded in %s seconds" % (time.time() - start))
     #else:
     #    logger.info("Algorithm gravity model KSGCNetMF starting")
     #    start = time.time()

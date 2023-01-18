@@ -97,8 +97,8 @@ def neighborhood_including_node(G, node, level):
 # @return: G, embedding - NetworkX graph of the network in the
 #                         input file and its embedding (DeepWalk)
 # ---------------------------------------------------------------
-def deepwalk_embedding(file, variable_name="network"):
-    G = load_graph(file, variable_name)
+def deepwalk_embedding(file):
+    G = load_graph(file)
     logger.info("DeepWalk embedding of %s network", file)
     start_time = time.time()
     model = DeepWalk(walk_length=200, dimensions=128, window_size=10)

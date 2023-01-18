@@ -28,25 +28,16 @@ logger = logging.getLogger(__name__)
 # @return: G - NetworkX graph of the dataset without self loops
 #              and isolated nodes
 # ---------------------------------------------------------------
-def load_mat_graph(file, variable_name="network"):
+def load_graph(file, variable_name="network"):
     os.chdir("../datasets")
-    raw_data = scipy.io.loadmat(file, squeeze_me=True)
-    data = raw_data[variable_name]
-    logger.info("loading mat file %s", file)
-    G = nx.to_networkx_graph(data, create_using=nx.Graph, multigraph_input=False)
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    G.remove_nodes_from(list(nx.isolates(G)))
-    mapping = dict(zip(G, range(0, len(list(G.nodes())))))
-    G = nx.relabel_nodes(G, mapping)
-    return G
-
-
-def load_gml_graph(file, variable_name="network"):
-    os.chdir("../networks")
-    raw_data = scipy.io.loadmat(file, squeeze_me=True)
-    data = raw_data[variable_name]
-    logger.info("loading mat file %s", file)
-    G = nx.to_networkx_graph(data, create_using=nx.Graph, multigraph_input=False)
+    if ".mat" in file:
+        raw_data = scipy.io.loadmat(file, squeeze_me=True)
+        data = raw_data[variable_name]
+        logger.info("loading mat file %s", file)
+        G = nx.to_networkx_graph(data, create_using=nx.Graph, multigraph_input=False)
+    else:
+        logger.info("loading gml file %s", file)
+        G = nx.read_gml(file, label="id")
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     G.remove_nodes_from(list(nx.isolates(G)))
     mapping = dict(zip(G, range(0, len(list(G.nodes())))))
@@ -62,12 +53,16 @@ def load_gml_graph(file, variable_name="network"):
 # @param: variable_name - data structure
 # @return: G - NetworkX graph of the dataset
 # ---------------------------------------------------------------
-def load_mat_default_graph(file, variable_name="network"):
+def load_default_graph(file, variable_name="network"):
     os.chdir("../datasets")
-    raw_data = scipy.io.loadmat(file, squeeze_me=True)
-    data = raw_data[variable_name]
-    logger.info("loading mat file %s", file)
-    G = nx.to_networkx_graph(data, create_using=nx.Graph, multigraph_input=False)
+    if ".mat" in file:
+        raw_data = scipy.io.loadmat(file, squeeze_me=True)
+        data = raw_data[variable_name]
+        logger.info("loading mat file %s", file)
+        G = nx.to_networkx_graph(data, create_using=nx.Graph, multigraph_input=False)
+    else:
+        logger.info("loading gml file %s", file)
+        G = nx.read_gml(file, label="id")
     return G
 
 # ---------------------------------------------------------------
@@ -101,7 +96,7 @@ def neighborhood_including_node(G, node, level):
 #                         input file and its embedding (DeepWalk)
 # ---------------------------------------------------------------
 def deepwalk_embedding(file, variable_name="network"):
-    G = load_mat_graph(file, variable_name)
+    G = load_graph(file, variable_name)
     logger.info("DeepWalk embedding of %s network", file)
     start_time = time.time()
     model = DeepWalk(walk_length=200, dimensions=128, window_size=10)
@@ -241,7 +236,7 @@ def asp(H):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def local_rasp(args):
-    G = load_mat_default_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_default_graph(args.matfile, variable_name=args.matfile_variable_name)
     lrasp = dict.fromkeys(list(G.nodes), 0)
     for i in G:
         neighbors = neighborhood_including_node(G, i, level=2)
@@ -288,7 +283,7 @@ def nlc(args):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def nlc2(args):
-    G = load_mat_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
     # Using NetMF embedding from karateclub module
     logger.info("NetMF embedding of network in %s dataset", args.matfile)
     start_time1 = time.time()
@@ -321,7 +316,7 @@ def nlc2(args):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def nlc_modified(args):
-    G = load_mat_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
     # Using NetMF embedding from karateclub module
     logger.info("NetMF embedding of network in %s dataset", args.matfile)
     start_time1 = time.time()
@@ -361,7 +356,7 @@ def nlc_modified(args):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def nlc_modified_second(args):
-    G = load_mat_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
     # Using NetMF embedding from karateclub module
     logger.info("NetMF embedding of network in %s dataset", args.matfile)
     start_time1 = time.time()
@@ -403,7 +398,7 @@ def nlc_modified_second(args):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def nlc_modified_third(args):
-    G = load_mat_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
     # Using NetMF embedding from karateclub module
     logger.info("NetMF embedding of network in %s dataset", args.matfile)
     start_time1 = time.time()
@@ -448,7 +443,7 @@ def nlc_modified_third(args):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def kdec(args):
-    G = load_mat_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     # Computing degrees
@@ -475,7 +470,7 @@ def kdec(args):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def nlc_kdec(args):
-    G = load_mat_graph(args.matfile, variable_name=args.matfile_variable_name)
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
     # Using NetMF embedding from karateclub module
     logger.info("NetMF embedding of network in %s dataset", args.matfile)
     start_time1 = time.time()
@@ -509,7 +504,7 @@ def nlc_kdec(args):
 
 
 # def gravity_model_modified(args):
-#     G = load_mat_graph(args.matfile, variable_name=args.matfile_variable_name)
+#     G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
 #     nodes = G.number_of_nodes()
 #     # Using NetMF embedding from karateclub module
 #     logger.info("NetMF embedding of network in %s dataset", args.matfile)
@@ -547,22 +542,20 @@ def nlc_kdec(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--matfile", type=str, required=True,
+    parser.add_argument("--input", type=str, required=True,
                         help=".mat input file path of original network")
     parser.add_argument('--matfile-variable-name', default='network',
                         help='variable name of adjacency matrix inside a .mat file.')
     parser.add_argument("--top", default=10, type=int,
                         help="#nodes top nodes")
-    parser.add_argument("--output", type=str, required=True,
-                        help="top influential nodes output file path")
-    parser.add_argument('--algorithm', dest="algorithm", action="store_true",
+    parser.add_argument('--nlc', dest="nlc", action="store_true",
                         help="using NLC to compute influence of nodes")
-    parser.set_defaults(algorithm=False)
+    parser.set_defaults(nlc=False)
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(message)s')  # include timestamp
-    if args.algorithm:
+    if args.nlc:
         logger.info("Algorithm NLC starting")
         start = time.time()
         nlc(args)

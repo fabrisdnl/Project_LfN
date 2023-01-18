@@ -99,9 +99,11 @@ def neighborhood_including_node(G, node, level):
 # ---------------------------------------------------------------
 def deepwalk_embedding(file):
     G = load_default_graph(file)
+    N = G.number_of_nodes()
+    r = math.ceil(N/2)
     logger.info("DeepWalk embedding of %s network", file)
     start_time = time.time()
-    model = DeepWalk(walk_length=200, dimensions=128, window_size=10)
+    model = DeepWalk(walk_length=100, dimensions=r, window_size=10)
     model.fit(G)
     embedding = model.get_embedding()
     print("------- %s seconds ---------" % (time.time() - start_time))
@@ -252,7 +254,7 @@ def local_rasp(args):
     lrasp = dict(sorted(lrasp.items(), key=operator.itemgetter(1), reverse=True))
     print(lrasp)
     k = args.top
-    print(list(lrasp.keys())[:k])
+    return list(lrasp.keys())[:k]
 
 
 # ---------------------------------------------------------------
@@ -274,7 +276,7 @@ def nlc(args):
     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes
     k = args.top
-    print(list(nlc_indexes.keys())[:k])
+    return list(nlc_indexes.keys())[:k]
 
 
 # ---------------------------------------------------------------
@@ -285,7 +287,7 @@ def nlc(args):
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
 def nlc2(args):
-    G = load_graph(args.inpu)
+    G = load_graph(args.input)
     # Using NetMF embedding from karateclub module
     logger.info("NetMF embedding of network in %s dataset", args.input)
     start_time1 = time.time()
@@ -307,48 +309,8 @@ def nlc2(args):
     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes
     k = args.top
-    print(list(nlc_indexes.keys())[:k])
+    return list(nlc_indexes.keys())[:k]
 
-
-# ---------------------------------------------------------------
-#
-# NLC modified algorithm to obtain the influence of nodes,
-# considering the mean degree of nodes.
-# @param: args - arguments from command line
-# Prints the top K influential nodes in the graph
-# ---------------------------------------------------------------
-def nlc_modified(args):
-    G = load_graph(args.input)
-    # Using NetMF embedding from karateclub module
-    logger.info("NetMF embedding of network in %s dataset", args.input)
-    start_time1 = time.time()
-    model = ne.NetMF()
-    model.fit(G)
-    embedding = model.get_embedding()
-    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    # Computing degrees for nodes
-    start_time2 = time.time()
-    degrees = {node: deg for (node, deg) in G.degree()}
-    mean_degree = statistics.mean(list(degrees.values()))
-    logger.info("Computing degree centrality in %s seconds" % (time.time() - start_time2))
-    # Computing the NLC index of each node
-    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
-    logger.info("Computing NLC index of each node")
-    for i in G:
-        if degrees[i] > mean_degree:
-            neighbors = neighborhood(G, i, level=3)
-            for j in neighbors:
-                nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
-    # sorting in descending order the nodes based on their NLC index  values
-    nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
-    # returning top 10 influential nodes
-    k = args.top
-    print(list(nlc_indexes.keys())[:k])
 
 # ---------------------------------------------------------------
 #
@@ -388,7 +350,7 @@ def nlc_modified_second(args):
         result[node] = nlc_indexes[node] * degrees[node]
     result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
     k = args.top
-    print(list(result.keys())[:k])
+    return list(result.keys())[:k]
 
 
 # ---------------------------------------------------------------
@@ -435,7 +397,7 @@ def nlc_modified_third(args):
         result[node] = nlc_indexes[node] * influence[node]
     result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
     k = args.top
-    print(list(result.keys())[:k])
+    return list(result.keys())[:k]
 
 # ---------------------------------------------------------------
 #
@@ -463,7 +425,7 @@ def kdec(args):
     kdec = dict(sorted(kdec.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes
     k = args.top
-    print(list(kdec.keys())[:k])
+    return list(kdec.keys())[:k]
 
 # ---------------------------------------------------------------
 #
@@ -502,7 +464,7 @@ def nlc_kdec(args):
     nlckdec = dict(sorted(nlckdec.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes
     k = args.top
-    print(list(nlckdec.keys())[:k])
+    return list(nlckdec.keys())[:k]
 
 
 # def gravity_model_modified(args):
@@ -555,21 +517,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(message)s')  # include timestamp
-    if args.nlc:
-        logger.info("Algorithm NLC starting")
-        start = time.time()
-        nlc(args)
-        logger.info("Algorithm NLC concluded in %s seconds" % (time.time() - start))
+    # if args.nlc:
+    #     logger.info("Algorithm NLC starting")
+    #     start = time.time()
+    #     nlc(args)
+    #     logger.info("Algorithm NLC concluded in %s seconds" % (time.time() - start))
     # else:
     #     logger.info("Algorithm NLC modified starting")
     #     start = time.time()
     #     nlc_modified(args)
     #     logger.info("Algorithm NLC modified concluded in %s seconds" % (time.time() - start))
-    else:
-        logger.info("Algorithm NLC second modified starting")
-        start = time.time()
-        nlc_modified_second(args)
-        logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
+    # else:
+    #     logger.info("Algorithm NLC second modified starting")
+    #     start = time.time()
+    #     nlc_modified_second(args)
+    #     logger.info("Algorithm NLC second modified concluded in %s seconds" % (time.time() - start))
     # else:
     #     logger.info("Algorithm NLC third modified starting")
     #     start = time.time()
@@ -595,5 +557,41 @@ if __name__ == "__main__":
     #     start = time.time()
     #     nlc_kdec(args)
     #     logger.info("Algorithm NLC KDEC concluded in %s seconds" % (time.time() - start))
+    G = load_graph(args.input)
+    length = G.number_of_nodes()
+    nlc_counter = dict.fromkeys(list(G.nodes()), 0)
+    nlc2_counter = dict.fromkeys(list(G.nodes()), 0)
+    nlc_second_mod_counter = dict.fromkeys(list(G.nodes()), 0)
+    nlc_third_mod_counter = dict.fromkeys(list(G.nodes()), 0)
+
+    for i in range(1000):
+        nodes = nlc(args)
+        for j in nodes:
+            nlc_counter[j] += 1
+    nlc_counter = dict(sorted(nlc_counter.items(), key=operator.itemgetter(1), reverse=True))
+    for i in range(1000):
+        nodes = nlc2(args)
+        for j in nodes:
+            nlc2_counter[j] += 1
+    nlc2_counter = dict(sorted(nlc2_counter.items(), key=operator.itemgetter(1), reverse=True))
+    for i in range(1000):
+        nodes = nlc_modified_second(args)
+        for j in nodes:
+            nlc_second_mod_counter[j] += 1
+    nlc_second_mod_counter = dict(sorted(nlc_second_mod_counter.items(), key=operator.itemgetter(1), reverse=True))
+    for i in range(1000):
+        nodes = nlc_modified_third(args)
+        for j in nodes:
+            nlc_third_mod_counter[j] += 1
+    nlc_third_mod_counter = dict(sorted(nlc_third_mod_counter.items(), key=operator.itemgetter(1), reverse=True))
+
+    print("NLC")
+    print(list(nlc_counter.keys())[:args.top])
+    print("NLC2")
+    print(list(nlc2_counter.keys())[:args.top])
+    print("NLC second modified")
+    print(list(nlc_second_mod_counter.keys())[:args.top])
+    print("NLC third modified")
+    print(list(nlc_third_mod_counter.keys())[:args.top])
 
 

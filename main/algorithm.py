@@ -269,6 +269,39 @@ def nlc(args):
 
 # ---------------------------------------------------------------
 #
+# NLC index algorithm to obtain the influence of nodes
+# but with NetMF embedding
+# @param: args - arguments from command line
+# Prints the top K influential nodes in the graph
+# ---------------------------------------------------------------
+def nlc2(args):
+    G = load_graph(args.matfile, variable_name=args.matfile_variable_name)
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.matfile)
+    start_time1 = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+    G.remove_edges_from(list(nx.selfloop_edges(G)))
+    # Precomputing euclidean distances between nodes in embedding
+    distances = precomputing_euclidean(embedding)
+    # Computing k-core value of each node
+    core_values = compute_k_core_values(G)
+    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+    for i in G:
+        neighbors = neighborhood(G, i, level=3)
+        for j in neighbors:
+            nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
+    # sorting in descending order the nodes based on their NLC index  values
+    nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
+    # returning top 10 influential nodes
+    k = args.top
+    print(list(nlc_indexes.keys())[:k])
+
+
+# ---------------------------------------------------------------
+#
 # NLC modified algorithm to obtain the influence of nodes,
 # considering the mean degree of nodes.
 # @param: args - arguments from command line
@@ -338,7 +371,7 @@ def nlc_modified_second(args):
     for i in G:
         neighbors = neighborhood(G, i, level=3)
         for j in neighbors:
-            nlc_indexes[i] += (core_values[i] * math.exp(distances[i, j]))
+            nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
     # returning top 10 influential nodes
     result = dict.fromkeys(nlc_indexes.keys(), 0)
     for node in result:

@@ -468,12 +468,12 @@ def nlc_ksd(args):
 
     ratio = average_core_number / average_degree
 
-    distances = dict()
     nlc_indexes = dict.fromkeys(core_values.keys(), 0.0)
     for i in G:
         neighbors = neighborhood(G, i, level=args.level)
         for j in neighbors:
-            nlc_indexes[i] += ((core_values[i] + core_values[j]) + ratio * (degrees[i] + degrees[j])) * math.exp(distances[i, j])
+            nlc_indexes[i] += ((core_values[i] + core_values[j]) + ratio * (degrees[i] + degrees[j])) \
+                              * math.exp(distances[i, j])
     # sorting in descending order the nodes based on their NLC index  values
     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
     # returning top 10 influential nodes

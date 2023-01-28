@@ -16,19 +16,22 @@ def get_mean_degrees(g):
     
     return [mean_degree / len(degrees), mean_square_degree / len(degrees)]
 
-def get_sir_influent(g, betah, num_iter, num_output):
+def get_sir_influent(g, betah, iter_exec, num_iter, num_output):
     
     start_time = time.time()
     beta = 1.5 * betah
     gamma = 1
     d = dict()
-    for n in nodes:
+    mapping = dict(zip(g, range(1, len(list(G.nodes())))))
+    g = nx.relabel_nodes(g, mapping)
+    for n in g.nodes:
         d[n] = 0
 
     # Model Configuration
     for i in range(num_iter):
         for n in g.nodes:
             status = True
+            count = 0
             model = ep.SIRModel(g)
             cfg = mc.Configuration()
             cfg.add_model_parameter('beta', beta)
@@ -36,14 +39,17 @@ def get_sir_influent(g, betah, num_iter, num_output):
             cfg.add_model_initial_configuration("Infected", [n])
             model.set_initial_status(cfg)
 
-            while(status):
+            while(count < iter_exec):
                 iterations = model.iteration()
+                count = count + 1
                 if iterations['node_count'][1] <= 0:
                     status = False
 
-            d[n] += iterations['node_count'][2]
-            
-    for n in nodes:
+            d[n] += iterations['node_count'][2] + iterations['node_count'][1]
+        
+        print("iteration " + str(i) + " concluded", end="\r", flush=True)
+        
+    for n in g.nodes:
         d[n] = d[n] / num_iter
 
     sorted_d = sorted(d.items(), key=lambda kv: kv[1])
@@ -52,21 +58,26 @@ def get_sir_influent(g, betah, num_iter, num_output):
     
     return [n[0] for n in sorted_d][:min(len(sorted_d), num_output)]
 
-def compute_sets_si(set_list, betah, interval):
+def compute_sets_si(set_list, betah, interval, iter_count):
     beta = 2 * betah
     results = []
     
     for l in set_list:
-        current = []
-        modelSI = ep.SIModel(G)
-        cfg = mc.Configuration()
-        cfg.add_model_parameter('beta', beta)
-        cfg.add_model_initial_configuration("Infected", l)
-        modelSI.set_initial_status(cfg)
+        current = [0]*interval
         
-        for i in range(interval):
-            iterations = modelSI.iteration()
-            current.append(iterations['node_count'][1])
+        for it in range(iter_count):
+            modelSI = ep.SIModel(G)
+            cfg = mc.Configuration()
+            cfg.add_model_parameter('beta', beta)
+            cfg.add_model_initial_configuration("Infected", l)
+            modelSI.set_initial_status(cfg)
+
+            for i in range(interval):
+                iterations = modelSI.iteration()
+                current[i] = current[i] + iterations['node_count'][1]
+        
+        for i in range(len(current)):
+            current[i] = current[i] / iter_count
         
         results.append(current)
   
@@ -76,12 +87,14 @@ def print_influence(sets, labels):
     color = iter(cm.rainbow(np.linspace(0, 1, len(sets))))
     #s = ["SIR", "NLC", "Gravity", "LRASP"];
     for i in range(len(sets)):
-       c = next(color)
-       plt.plot(sets[i], c=c, label=labels[i])
+        c = next(color)
+        plt.plot(sets[i], c=c, label=labels[i])
+        plt.plot(sets[i], '.', c=c, label=labels[i])
     
     #TO DO: send sets as dictionary with key representing label of printed data
     plt.ylabel('num_infected')
     plt.xlabel('iterations')
+    plt.grid(True)
     plt.legend()
     plt.show()
 

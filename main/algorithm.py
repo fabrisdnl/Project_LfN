@@ -448,19 +448,22 @@ def nlc_ksd(args):
     embedding = model.get_embedding()
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     average_core_number = statistics.mean(list(core_values.values()))
     # Computing degree for each node
     degrees = {node: val for (node, val) in G.degree()}
     average_degree = statistics.mean(list(degrees.values()))
+
     ratio = average_core_number / average_degree
+
+    distances = dict()
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     for i in G:
         neighbors = neighborhood(G, i, level=2)
         for j in neighbors:
+            alias = (i, j)
+            distances[alias] = -np.linalg.norm(embedding[i] - embedding[j])
             nlc_indexes[i] += ((core_values[i] + core_values[j]) + ratio * (degrees[i] + degrees[j])) * math.exp(distances[i, j])
     # sorting in descending order the nodes based on their NLC index  values
     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))

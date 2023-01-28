@@ -459,7 +459,7 @@ def nlc_ksd(args):
     ratio = average_core_number / average_degree
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     for i in G:
-        neighbors = neighborhood(G, i, level=1)
+        neighbors = neighborhood(G, i, level=2)
         for j in neighbors:
             nlc_indexes[i] += ((core_values[i] + core_values[j]) + ratio * (degrees[i] + degrees[j])) * math.exp(distances[i, j])
     # sorting in descending order the nodes based on their NLC index  values
@@ -467,6 +467,82 @@ def nlc_ksd(args):
     # returning top 10 influential nodes
     k = args.top
     return list(nlc_indexes.keys())[:k]
+
+
+def bf_num_spaths(G):
+    n_spaths = dict.fromkeys(G, 0.0)
+    for source in G:
+        for target in G:
+            if source == target:
+                continue
+            for path in nx.all_shortest_paths(G, source, target):
+                for node in path[1:]: # ignore firs element (source == node)
+                    n_spaths[node] += 1 # this path passes through `node`
+    return n_spaths
+
+
+def nlc_shks(args):
+    G = load_graph(args.input)
+    # Using NetMF embedding from karateclub module
+    logger.info("NetMF embedding of network in %s dataset", args.input)
+    start_time1 = time.time()
+    model = ne.NetMF()
+    model.fit(G)
+    embedding = model.get_embedding()
+    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+    G.remove_edges_from(list(nx.selfloop_edges(G)))
+    # Precomputing euclidean distances between nodes in embedding
+    distances = precomputing_euclidean(embedding)
+    # Computing k-core value of each node
+    core_values = compute_k_core_values(G)
+    # Computing degree for each node
+    degrees = {node: val for (node, val) in G.degree()}
+    # Computing average node stress
+    S = statistics.mean(list(bf_num_spaths(G).values()))
+    alfa = 0.0000154 * S + 22.34
+    c = dict.fromkeys(core_values.keys(), 0)
+    sh = dict.fromkeys(core_values.keys(), 0)
+    I = dict.fromkeys(core_values.keys(), 0)
+    C = dict.fromkeys(core_values.keys(), 0)
+    IS = dict.fromkeys(core_values.keys(), 0)
+    SHKS = dict.fromkeys(core_values.keys(), 0)
+    for v in G:
+        neighbors = neighborhood(G, v, level=1)
+        for u in neighbors:
+            pvu = 1 / (len(neighbors.keys()) )
+            neighbors2 = neighborhood(G, u, level=1)
+            intersection = {i: neighbors[i] for i in set(neighbors.keys()).intersection(set(neighbors2.keys()))}
+            second_factor = 0
+            for w in intersection:
+                neighbors3 = neighborhood(G, w, level=1)
+                pvw = 1 / (len(neighbors.keys()))
+                pwu = 1 / (len(neighbors3.keys()))
+                second_factor += pvw * pwu
+            term = math.pow(pvu + second_factor, 2)
+            c[v] += term
+        sh[v] = 1 / c[v] #sh
+        I[v] = alfa * sh[v] + core_values[v]
+
+    for v in G:
+        neighbors = neighborhood(G, v, level=1)
+        for u in neighbors:
+            C[v] += (I[v] + I[u])
+
+    for v in G:
+        neighbors = neighborhood(G, v, level=1)
+        for u in neighbors:
+            IS[v] += C[u]
+
+    for v in G:
+        neighbors = neighborhood(G, v, level=1)
+        for u in neighbors:
+            SHKS[v] += IS[u] * math.exp(distances[v,u])
+
+    # sorting in descending order the nodes based on their NLC index  values
+    SHKS = dict(sorted(SHKS.items(), key=operator.itemgetter(1), reverse=True))
+    # returning top 10 influential nodes
+    k = args.top
+    return list(SHKS.keys())[:k]
 
 
 # ---------------------------------------------------------------
@@ -654,8 +730,8 @@ if __name__ == "__main__":
     #     for j in nodes:
     #         nlc_third_mod_counter[j] += 1
     # nlc_third_mod_counter = dict(sorted(nlc_third_mod_counter.items(), key=operator.itemgetter(1), reverse=True))
-    for i in range(5):
-        nodes = nlc_modified_third(args)
+    for i in range(1000):
+        nodes = nlc(args)
         for j in nodes:
             nlc_counter[j] += 1
     nlc_counter = dict(sorted(nlc_counter.items(), key=operator.itemgetter(1), reverse=True))
@@ -668,10 +744,10 @@ if __name__ == "__main__":
     # print("NLC third modified")
     # print(list(nlc_third_mod_counter.keys())[:args.top])
     print("NLC")
-    top_wikipedia = list(nlc_counter.keys())[:args.top]
-    first_100 = wikipedia_top[:args.top]
+    top = list(nlc_counter.keys())[:args.top]
+    first = lesmis_top[:args.top]
     count = 0
-    for i in top_wikipedia:
-        count += wikipedia_top.count(i)
+    for i in top:
+        count += first.count(i)
     print(count)
 

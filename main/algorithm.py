@@ -722,7 +722,7 @@ if __name__ == "__main__":
             for j in nlcksd_nodes:
                 nlcksd_counter[j] += 1
     if ".txt" in args.input:
-        for i in range(5):
+        for i in range(100):
             nlc_nodes = nlc(args)
             for j in nlc_nodes:
                 nlc_counter[j] += 1
@@ -733,23 +733,39 @@ if __name__ == "__main__":
     nlcksd_counter = dict(sorted(nlcksd_counter.items(), key=operator.itemgetter(1), reverse=True))
 
     first = (switch(args.input))[:args.top]
-    print(first)
-    print("NLC")
+
+    output = ""
+    if ".gml" in args.input:
+        output = args.input.removesuffix('.gml')
+    if ".txt" in args.input:
+        output = args.input.removesuffix('.txt')
+        output = output + "-out"
+    if ".mat" in args.input:
+        output = args.input.removesuffix('.mat')
+
+    file = open(output + ".txt", "w")
+    file.write("SIR\n")
+    for item in first:
+        file.write("%s " % item)
+    file.write("\nNLC\n")
     top_nlc = list(nlc_counter.keys())[:args.top]
     top_nlc = [x + 1 for x in top_nlc]
-    print(top_nlc)
+    for item in top_nlc:
+        file.write("%s " % item)
     count = 0
     for i in top_nlc:
         count += first.count(i)
-    print(count)
+    file.write("\nRight nodes: %s\n" % str(count))
 
-    print("NLC KSD")
+    file.write("NLC KSD\n")
     top_nlcksd = list(nlcksd_counter.keys())[:args.top]
     top_nlcksd = [x + 1 for x in top_nlcksd]
-    print(top_nlcksd)
+    for item in top_nlcksd:
+        file.write("%s " % item)
     count = 0
     for i in top_nlcksd:
         count += first.count(i)
-    print(count)
+    file.write("\nRight nodes: %s" % str(count))
+    file.close()
 
 

@@ -50,7 +50,7 @@ def load_graph(file):
     if ".gml" in file:
         logger.info("loading gml file %s", file)
         G = nx.read_gml(file, label="id")
-    else:
+    if ".txt" in file:
         logger.info("loading txt file %s", file)
         G = nx.read_edgelist(file, create_using=nx.Graph)
     G.remove_edges_from(list(nx.selfloop_edges(G)))
@@ -79,7 +79,7 @@ def load_default_graph(file):
     if ".gml" in file:
         logger.info("loading gml file %s", file)
         G = nx.read_gml(file, label="id")
-    else:
+    if ".txt" in file:
         logger.info("loading txt file %s", file)
         G = nx.read_edgelist(file, create_using=nx.Graph, nodetype=int)
     return G
@@ -135,11 +135,11 @@ def deepwalk_embedding(file):
 #                      distances between each pair of embedded
 #                      nodes
 # ---------------------------------------------------------------
-def precomputing_euclidean(embedding):
+def precomputing_euclidean(G, embedding):
     start = time.time()
     distances = dict()
-    for i in range(len(embedding)):
-        for j in range(len(embedding)):
+    for i in G:
+        for j in G:
             alias = (i,j)
             distances[alias] = -np.linalg.norm(embedding[i]-embedding[j])
     logger.info("Precomputing euclidean distances between node embeddings in %s seconds" % (time.time()-start))
@@ -261,7 +261,7 @@ def local_rasp(args):
     G = load_default_graph(args.input)
     lrasp = dict.fromkeys(list(G.nodes), 0)
     for i in G:
-        neighbors = neighborhood_including_node(G, i, level=2)
+        neighbors = neighborhood_including_node(G, i, level=1)
         H = G.subgraph(neighbors.keys())
         if H is not None:
             H_i = H.copy()
@@ -287,7 +287,7 @@ def nlc(args):
     core_values = compute_k_core_values(G)
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     for i in G:
-        neighbors = neighborhood(G, i, level=3)
+        neighbors = neighborhood(G, i, level=args.level)
         for j in neighbors:
             nlc_indexes[i] += (core_values[i] * math.exp(- np.linalg.norm(deepwalk_graph[i] - deepwalk_graph[j])))
     # sorting in descending order the nodes based on their NLC index  values
@@ -315,12 +315,12 @@ def nlc2(args):
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
+    distances = precomputing_euclidean(G, embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     for i in G:
-        neighbors = neighborhood(G, i, level=3)
+        neighbors = neighborhood(G, i, level=args.level)
         for j in neighbors:
             nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
     # sorting in descending order the nodes based on their NLC index  values
@@ -348,7 +348,7 @@ def nlc_modified_second(args):
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
+    distances = precomputing_euclidean(G, embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     # Computing degree for each node
@@ -359,7 +359,7 @@ def nlc_modified_second(args):
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     logger.info("Computing NLC index of each node")
     for i in G:
-        neighbors = neighborhood(G, i, level=3)
+        neighbors = neighborhood(G, i, level=args.level)
         for j in neighbors:
             nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
     # returning top 10 influential nodes
@@ -390,7 +390,7 @@ def nlc_modified_third(args):
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
+    distances = precomputing_euclidean(G, embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     # Computing degree for each node
@@ -403,7 +403,7 @@ def nlc_modified_third(args):
     influence = dict.copy(nlc_indexes)
     logger.info("Computing NLC index and degree ratio of each node")
     for i in G:
-        neighbors = neighborhood(G, i, level=3)
+        neighbors = neighborhood(G, i, level=args.level)
         neighborhood_degree[i] += degrees[i]
         for j in neighbors:
             nlc_indexes[i] += (core_values[i] * math.exp(distances[i, j]))
@@ -429,13 +429,13 @@ def nlc_triangle(args):
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
+    distances = precomputing_euclidean(G, embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     triangles_pernode = dict.fromkeys(core_values.keys(), 0)
     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
     for i in G:
-        neighbors = neighborhood_including_node(G, i, level=3)
+        neighbors = neighborhood_including_node(G, i, level=args.level)
         triangles_pernode[i] += sum(nx.triangles(nx.subgraph(G, neighbors))) / 3
         del neighbors[i]
         for j in neighbors:
@@ -457,6 +457,8 @@ def nlc_ksd(args):
     embedding = model.get_embedding()
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
+    # Precomputing distances
+    distances = precomputing_euclidean(G, embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     average_core_number = statistics.mean(list(core_values.values()))
@@ -467,12 +469,10 @@ def nlc_ksd(args):
     ratio = average_core_number / average_degree
 
     distances = dict()
-    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+    nlc_indexes = dict.fromkeys(core_values.keys(), 0.0)
     for i in G:
-        neighbors = neighborhood(G, i, level=3)
+        neighbors = neighborhood(G, i, level=args.level)
         for j in neighbors:
-            alias = (i, j)
-            distances[alias] = -np.linalg.norm(embedding[i] - embedding[j])
             nlc_indexes[i] += ((core_values[i] + core_values[j]) + ratio * (degrees[i] + degrees[j])) * math.exp(distances[i, j])
     # sorting in descending order the nodes based on their NLC index  values
     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
@@ -504,7 +504,7 @@ def nlc_shks(args):
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
+    distances = precomputing_euclidean(G, embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     # Computing degree for each node
@@ -602,7 +602,7 @@ def nlc_kdec(args):
     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(embedding)
+    distances = precomputing_euclidean(G, embedding)
     # Computing k-core value of each node
     core_values = compute_k_core_values(G)
     # Computing degrees
@@ -637,7 +637,7 @@ def nlc_kdec(args):
 #     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
 #     G.remove_edges_from(list(nx.selfloop_edges(G)))
 #     # Precomputing euclidean distances between nodes in embedding
-#     distances = precomputing_euclidean(embedding)
+#     distances = precomputing_euclidean(G, embedding)
 #     # Computing the degree of each node
 #     degrees = {node: val for (node, val) in G.degree()}
 #     # Computing k-core value of each node
@@ -691,6 +691,8 @@ if __name__ == "__main__":
                         help=".mat input file path of original network")
     parser.add_argument("--top", default=10, type=int,
                         help="#nodes top nodes")
+    parser.add_argument("--level", default=3, type=int,
+                        help="level of node's neighborhood")
     parser.add_argument('--nlc', dest="nlc", action="store_true",
                         help="using NLC to compute influence of nodes")
     parser.set_defaults(nlc=False)
@@ -720,7 +722,7 @@ if __name__ == "__main__":
             for j in nlcksd_nodes:
                 nlcksd_counter[j] += 1
     if ".txt" in args.input:
-        for i in range(100):
+        for i in range(5):
             nlc_nodes = nlc(args)
             for j in nlc_nodes:
                 nlc_counter[j] += 1
@@ -734,19 +736,19 @@ if __name__ == "__main__":
     print(first)
     print("NLC")
     top_nlc = list(nlc_counter.keys())[:args.top]
+    top_nlc = [x + 1 for x in top_nlc]
     print(top_nlc)
     count = 0
     for i in top_nlc:
-        print(i)
         count += first.count(i)
     print(count)
 
     print("NLC KSD")
     top_nlcksd = list(nlcksd_counter.keys())[:args.top]
+    top_nlcksd = [x + 1 for x in top_nlcksd]
     print(top_nlcksd)
     count = 0
     for i in top_nlcksd:
-        print(i)
         count += first.count(i)
     print(count)
 

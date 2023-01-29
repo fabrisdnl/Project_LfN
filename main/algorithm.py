@@ -739,9 +739,10 @@ if __name__ == "__main__":
         output = args.input.removesuffix('.gml')
     if ".txt" in args.input:
         output = args.input.removesuffix('.txt')
-        output = output + "-out"
+        output = output + "-out-without-increment"
     if ".mat" in args.input:
         output = args.input.removesuffix('.mat')
+        #output = output + "-without-increment"
 
     file = open(output + ".txt", "w")
     file.write("SIR\n")
@@ -749,7 +750,7 @@ if __name__ == "__main__":
         file.write("%s " % item)
     file.write("\nNLC\n")
     top_nlc = list(nlc_counter.keys())[:args.top]
-    top_nlc = [x + 1 for x in top_nlc]
+    #top_nlc = [x + 1 for x in top_nlc]
     for item in top_nlc:
         file.write("%s " % item)
     count = 0
@@ -759,7 +760,7 @@ if __name__ == "__main__":
 
     file.write("NLC KSD\n")
     top_nlcksd = list(nlcksd_counter.keys())[:args.top]
-    top_nlcksd = [x + 1 for x in top_nlcksd]
+    #top_nlcksd = [x + 1 for x in top_nlcksd]
     for item in top_nlcksd:
         file.write("%s " % item)
     count = 0

@@ -739,10 +739,8 @@ if __name__ == "__main__":
         output = args.input.removesuffix('.gml')
     if ".txt" in args.input:
         output = args.input.removesuffix('.txt')
-        output = output + "-out-without-increment"
     if ".mat" in args.input:
         output = args.input.removesuffix('.mat')
-        #output = output + "-without-increment"
 
     file = open(output + ".txt", "w")
     file.write("SIR\n")
@@ -750,23 +748,31 @@ if __name__ == "__main__":
         file.write("%s " % item)
     file.write("\nNLC\n")
     top_nlc = list(nlc_counter.keys())[:args.top]
-    #top_nlc = [x + 1 for x in top_nlc]
     for item in top_nlc:
         file.write("%s " % item)
     count = 0
     for i in top_nlc:
         count += first.count(i)
-    file.write("\nRight nodes: %s\n" % str(count))
+    count_withincrement = 0
+    top_nlc = [x + 1 for x in top_nlc]
+    for i in top_nlc:
+        count_withincrement += first.count(i)
+    file.write("\nRight nodes: %s" % str(count))
+    file.write("\nRight nodes with increment: %s" % str(count_withincrement))
 
-    file.write("NLC KSD\n")
+    file.write("\nNLC KSD\n")
     top_nlcksd = list(nlcksd_counter.keys())[:args.top]
-    #top_nlcksd = [x + 1 for x in top_nlcksd]
     for item in top_nlcksd:
         file.write("%s " % item)
     count = 0
+    for item in top_nlcksd:
+        file.write("%s " % item)
+    count_withincrement = 0
+    top_nlcksd = [x + 1 for x in top_nlcksd]
     for i in top_nlcksd:
-        count += first.count(i)
+        count_withincrement += first.count(i)
     file.write("\nRight nodes: %s" % str(count))
+    file.write("\nRight nodes with increment: %s" % str(count_withincrement))
     file.close()
 
 

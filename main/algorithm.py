@@ -234,45 +234,45 @@ def asp_s(H, G):
 # @param: H - graph
 # @return: asp_value - average shortest path of graph H
 # ---------------------------------------------------------------
-
-def asp(H):
-    n = H.number_of_nodes()
-    asp_value = 0
-    if not (nx.is_connected(H)):
-        diameter = nx.diameter(H)
-    for i in H:
-        for j in H:
-            if nx.has_path(H, source=i, target=j):
-                asp_value += nx.shortest_path_length(H, source=i, target=j)
-            else:
-                asp_value += diameter
-    asp_value = asp_value / (n * (n-1))
-    return asp_value
-
-# ---------------------------------------------------------------
 #
-# LRASP (Local Relative change of Average Shortest Path
-# Centrality) algorithm to obtain the k nodes with higher
-# LRASP measures.
-# @param: args - arguments from command line
-# Prints the top K influential nodes in the graph
-# ---------------------------------------------------------------
-def local_rasp(args):
-    G = load_default_graph(args.input)
-    lrasp = dict.fromkeys(list(G.nodes), 0)
-    for i in G:
-        neighbors = neighborhood_including_node(G, i, level=1)
-        H = G.subgraph(neighbors.keys())
-        if H is not None:
-            H_i = H.copy()
-            H_i.remove_node(i)
-            if H_i is not None:
-                asp_value_H = asp(H)
-                lrasp[i] = abs(asp_s(H_i, H) - asp_value_H) / asp_value_H
-    lrasp = dict(sorted(lrasp.items(), key=operator.itemgetter(1), reverse=True))
-    print(lrasp)
-    k = args.top
-    return list(lrasp.keys())[:k]
+# def asp(H):
+#     n = H.number_of_nodes()
+#     asp_value = 0
+#     if not (nx.is_connected(H)):
+#         diameter = nx.diameter(H)
+#     for i in H:
+#         for j in H:
+#             if nx.has_path(H, source=i, target=j):
+#                 asp_value += nx.shortest_path_length(H, source=i, target=j)
+#             else:
+#                 asp_value += diameter
+#     asp_value = asp_value / (n * (n-1))
+#     return asp_value
+#
+# # ---------------------------------------------------------------
+# #
+# # LRASP (Local Relative change of Average Shortest Path
+# # Centrality) algorithm to obtain the k nodes with higher
+# # LRASP measures.
+# # @param: args - arguments from command line
+# # Prints the top K influential nodes in the graph
+# # ---------------------------------------------------------------
+# def local_rasp(args):
+#     G = load_default_graph(args.input)
+#     lrasp = dict.fromkeys(list(G.nodes), 0)
+#     for i in G:
+#         neighbors = neighborhood_including_node(G, i, level=1)
+#         H = G.subgraph(neighbors.keys())
+#         if H is not None:
+#             H_i = H.copy()
+#             H_i.remove_node(i)
+#             if H_i is not None:
+#                 asp_value_H = asp(H)
+#                 lrasp[i] = abs(asp_s(H_i, H) - asp_value_H) / asp_value_H
+#     lrasp = dict(sorted(lrasp.items(), key=operator.itemgetter(1), reverse=True))
+#     print(lrasp)
+#     k = args.top
+#     return list(lrasp.keys())[:k]
 
 
 # ---------------------------------------------------------------
@@ -304,149 +304,155 @@ def nlc(args):
 # @param: args - arguments from command line
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
-def nlc2(args):
-    G = load_graph(args.input)
-    # Using NetMF embedding from karateclub module
-    logger.info("NetMF embedding of network in %s dataset", args.input)
-    start_time1 = time.time()
-    model = ne.NetMF()
-    model.fit(G)
-    embedding = model.get_embedding()
-    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(G, embedding)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
-    for i in G:
-        neighbors = neighborhood(G, i, level=args.level)
-        for j in neighbors:
-            nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
-    # sorting in descending order the nodes based on their NLC index  values
-    nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
-    # returning top 10 influential nodes
-    k = args.top
-    return list(nlc_indexes.keys())[:k]
-
+# def nlc2(args):
+#     G = load_graph(args.input)
+#     # Using NetMF embedding from karateclub module
+#     logger.info("NetMF embedding of network in %s dataset", args.input)
+#     start_time1 = time.time()
+#     model = ne.NetMF()
+#     model.fit(G)
+#     embedding = model.get_embedding()
+#     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+#     G.remove_edges_from(list(nx.selfloop_edges(G)))
+#     # Precomputing euclidean distances between nodes in embedding
+#     distances = precomputing_euclidean(G, embedding)
+#     # Computing k-core value of each node
+#     core_values = compute_k_core_values(G)
+#     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+#     for i in G:
+#         neighbors = neighborhood(G, i, level=args.level)
+#         for j in neighbors:
+#             nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
+#     # sorting in descending order the nodes based on their NLC index  values
+#     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
+#     # returning top 10 influential nodes
+#     k = args.top
+#     return list(nlc_indexes.keys())[:k]
+#
+#
+# # ---------------------------------------------------------------
+# #
+# # NLC modified second algorithm to obtain the influence of nodes,
+# # considering the degrees of nodes.
+# # @param: args - arguments from command line
+# # Prints the top K influential nodes in the graph
+# # ---------------------------------------------------------------
+# def nlc_modified_second(args):
+#     G = load_graph(args.input)
+#     # Using NetMF embedding from karateclub module
+#     logger.info("NetMF embedding of network in %s dataset", args.input)
+#     start_time1 = time.time()
+#     model = ne.NetMF()
+#     model.fit(G)
+#     embedding = model.get_embedding()
+#     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+#     G.remove_edges_from(list(nx.selfloop_edges(G)))
+#     # Precomputing euclidean distances between nodes in embedding
+#     distances = precomputing_euclidean(G, embedding)
+#     # Computing k-core value of each node
+#     core_values = compute_k_core_values(G)
+#     # Computing degree for each node
+#     start_time4 = time.time()
+#     degrees = {node: val for (node, val) in G.degree()}
+#     logger.info("Computing degree of each node in %s seconds" % (time.time() - start_time4))
+#     # Computing the NLC index of each node
+#     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+#     logger.info("Computing NLC index of each node")
+#     for i in G:
+#         neighbors = neighborhood(G, i, level=args.level)
+#         for j in neighbors:
+#             nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
+#     # returning top 10 influential nodes
+#     result = dict.fromkeys(nlc_indexes.keys(), 0)
+#     for node in result:
+#         result[node] = nlc_indexes[node] * degrees[node]
+#     result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
+#     k = args.top
+#     return list(result.keys())[:k]
+#
+#
+# # ---------------------------------------------------------------
+# #
+# # NLC modified third algorithm to obtain the influence of nodes,
+# # considering the ratio between the node's degree and the total
+# # degree of neighborhood of each node.
+# # @param: args - arguments from command line
+# # Prints the top K influential nodes in the graph
+# # ---------------------------------------------------------------
+# def nlc_modified_third(args):
+#     G = load_graph(args.input)
+#     # Using NetMF embedding from karateclub module
+#     logger.info("NetMF embedding of network in %s dataset", args.input)
+#     start_time1 = time.time()
+#     model = ne.NetMF()
+#     model.fit(G)
+#     embedding = model.get_embedding()
+#     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+#     G.remove_edges_from(list(nx.selfloop_edges(G)))
+#     # Precomputing euclidean distances between nodes in embedding
+#     distances = precomputing_euclidean(G, embedding)
+#     # Computing k-core value of each node
+#     core_values = compute_k_core_values(G)
+#     # Computing degree for each node
+#     start_time4 = time.time()
+#     degrees = {node: val for (node, val) in G.degree()}
+#     logger.info("Computing degree of each node in %s seconds" % (time.time() - start_time4))
+#     # Computing the NLC index of each node
+#     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+#     neighborhood_degree = dict.copy(nlc_indexes)
+#     influence = dict.copy(nlc_indexes)
+#     logger.info("Computing NLC index and degree ratio of each node")
+#     for i in G:
+#         neighbors = neighborhood(G, i, level=args.level)
+#         neighborhood_degree[i] += degrees[i]
+#         for j in neighbors:
+#             nlc_indexes[i] += (core_values[i] * math.exp(distances[i, j]))
+#             neighborhood_degree[i] += degrees[j]
+#         influence[i] = degrees[i] / neighborhood_degree[i]
+#     # returning top 10 influential nodes
+#     result = dict.fromkeys(nlc_indexes.keys(), 0)
+#     for node in result:
+#         result[node] = nlc_indexes[node] * influence[node]
+#     result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
+#     k = args.top
+#     return list(result.keys())[:k]
+#
+#
+# def nlc_triangle(args):
+#     G = load_graph(args.input)
+#     # Using NetMF embedding from karateclub module
+#     logger.info("NetMF embedding of network in %s dataset", args.input)
+#     start_time1 = time.time()
+#     model = ne.NetMF()
+#     model.fit(G)
+#     embedding = model.get_embedding()
+#     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+#     G.remove_edges_from(list(nx.selfloop_edges(G)))
+#     # Precomputing euclidean distances between nodes in embedding
+#     distances = precomputing_euclidean(G, embedding)
+#     # Computing k-core value of each node
+#     core_values = compute_k_core_values(G)
+#     triangles_pernode = dict.fromkeys(core_values.keys(), 0)
+#     nlc_indexes = dict.fromkeys(core_values.keys(), 0)
+#     for i in G:
+#         neighbors = neighborhood_including_node(G, i, level=args.level)
+#         triangles_pernode[i] += sum(nx.triangles(nx.subgraph(G, neighbors))) / 3
+#         del neighbors[i]
+#         for j in neighbors:
+#             nlc_indexes[i] += (core_values[i] * triangles_pernode[i] * math.exp(distances[i, j]))
+#     # sorting in descending order the nodes based on their NLC index  values
+#     nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
+#     # returning top 10 influential nodes
+#     k = args.top
+#     return list(nlc_indexes.keys())[:k]
 
 # ---------------------------------------------------------------
 #
-# NLC modified second algorithm to obtain the influence of nodes,
-# considering the degrees of nodes.
+# NLCKSD index algorithm to obtain the influence of nodes, which
+# considers k-shell values, degrees and network embedding.
 # @param: args - arguments from command line
 # Prints the top K influential nodes in the graph
 # ---------------------------------------------------------------
-def nlc_modified_second(args):
-    G = load_graph(args.input)
-    # Using NetMF embedding from karateclub module
-    logger.info("NetMF embedding of network in %s dataset", args.input)
-    start_time1 = time.time()
-    model = ne.NetMF()
-    model.fit(G)
-    embedding = model.get_embedding()
-    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(G, embedding)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    # Computing degree for each node
-    start_time4 = time.time()
-    degrees = {node: val for (node, val) in G.degree()}
-    logger.info("Computing degree of each node in %s seconds" % (time.time() - start_time4))
-    # Computing the NLC index of each node
-    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
-    logger.info("Computing NLC index of each node")
-    for i in G:
-        neighbors = neighborhood(G, i, level=args.level)
-        for j in neighbors:
-            nlc_indexes[i] += (core_values[i] * math.exp(distances[i,j]))
-    # returning top 10 influential nodes
-    result = dict.fromkeys(nlc_indexes.keys(), 0)
-    for node in result:
-        result[node] = nlc_indexes[node] * degrees[node]
-    result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
-    k = args.top
-    return list(result.keys())[:k]
-
-
-# ---------------------------------------------------------------
-#
-# NLC modified third algorithm to obtain the influence of nodes,
-# considering the ratio between the node's degree and the total
-# degree of neighborhood of each node.
-# @param: args - arguments from command line
-# Prints the top K influential nodes in the graph
-# ---------------------------------------------------------------
-def nlc_modified_third(args):
-    G = load_graph(args.input)
-    # Using NetMF embedding from karateclub module
-    logger.info("NetMF embedding of network in %s dataset", args.input)
-    start_time1 = time.time()
-    model = ne.NetMF()
-    model.fit(G)
-    embedding = model.get_embedding()
-    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(G, embedding)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    # Computing degree for each node
-    start_time4 = time.time()
-    degrees = {node: val for (node, val) in G.degree()}
-    logger.info("Computing degree of each node in %s seconds" % (time.time() - start_time4))
-    # Computing the NLC index of each node
-    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
-    neighborhood_degree = dict.copy(nlc_indexes)
-    influence = dict.copy(nlc_indexes)
-    logger.info("Computing NLC index and degree ratio of each node")
-    for i in G:
-        neighbors = neighborhood(G, i, level=args.level)
-        neighborhood_degree[i] += degrees[i]
-        for j in neighbors:
-            nlc_indexes[i] += (core_values[i] * math.exp(distances[i, j]))
-            neighborhood_degree[i] += degrees[j]
-        influence[i] = degrees[i] / neighborhood_degree[i]
-    # returning top 10 influential nodes
-    result = dict.fromkeys(nlc_indexes.keys(), 0)
-    for node in result:
-        result[node] = nlc_indexes[node] * influence[node]
-    result = dict(sorted(result.items(), key=operator.itemgetter(1), reverse=False))
-    k = args.top
-    return list(result.keys())[:k]
-
-
-def nlc_triangle(args):
-    G = load_graph(args.input)
-    # Using NetMF embedding from karateclub module
-    logger.info("NetMF embedding of network in %s dataset", args.input)
-    start_time1 = time.time()
-    model = ne.NetMF()
-    model.fit(G)
-    embedding = model.get_embedding()
-    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(G, embedding)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    triangles_pernode = dict.fromkeys(core_values.keys(), 0)
-    nlc_indexes = dict.fromkeys(core_values.keys(), 0)
-    for i in G:
-        neighbors = neighborhood_including_node(G, i, level=args.level)
-        triangles_pernode[i] += sum(nx.triangles(nx.subgraph(G, neighbors))) / 3
-        del neighbors[i]
-        for j in neighbors:
-            nlc_indexes[i] += (core_values[i] * triangles_pernode[i] * math.exp(distances[i, j]))
-    # sorting in descending order the nodes based on their NLC index  values
-    nlc_indexes = dict(sorted(nlc_indexes.items(), key=operator.itemgetter(1), reverse=True))
-    # returning top 10 influential nodes
-    k = args.top
-    return list(nlc_indexes.keys())[:k]
-
-
 def nlc_ksd(args):
     G = load_graph(args.input)
     # Using NetMF embedding from karateclub module
@@ -481,148 +487,148 @@ def nlc_ksd(args):
     return list(nlc_indexes.keys())[:k]
 
 
-def bf_num_spaths(G):
-    n_spaths = dict.fromkeys(G, 0.0)
-    for source in G:
-        for target in G:
-            if source == target:
-                continue
-            for path in nx.all_shortest_paths(G, source, target):
-                for node in path[1:]: # ignore firs element (source == node)
-                    n_spaths[node] += 1 # this path passes through `node`
-    return n_spaths
-
-
-def nlc_shks(args):
-    G = load_graph(args.input)
-    # Using NetMF embedding from karateclub module
-    logger.info("NetMF embedding of network in %s dataset", args.input)
-    start_time1 = time.time()
-    model = ne.NetMF()
-    model.fit(G)
-    embedding = model.get_embedding()
-    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(G, embedding)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    # Computing degree for each node
-    degrees = {node: val for (node, val) in G.degree()}
-    # Computing average node stress
-    S = statistics.mean(list(bf_num_spaths(G).values()))
-    alfa = 0.0000154 * S + 22.34
-    c = dict.fromkeys(core_values.keys(), 0)
-    sh = dict.fromkeys(core_values.keys(), 0)
-    I = dict.fromkeys(core_values.keys(), 0)
-    C = dict.fromkeys(core_values.keys(), 0)
-    IS = dict.fromkeys(core_values.keys(), 0)
-    SHKS = dict.fromkeys(core_values.keys(), 0)
-    for v in G:
-        neighbors = neighborhood(G, v, level=1)
-        for u in neighbors:
-            pvu = 1 / (len(neighbors.keys()) )
-            neighbors2 = neighborhood(G, u, level=1)
-            intersection = {i: neighbors[i] for i in set(neighbors.keys()).intersection(set(neighbors2.keys()))}
-            second_factor = 0
-            for w in intersection:
-                neighbors3 = neighborhood(G, w, level=1)
-                pvw = 1 / (len(neighbors.keys()))
-                pwu = 1 / (len(neighbors3.keys()))
-                second_factor += pvw * pwu
-            term = math.pow(pvu + second_factor, 2)
-            c[v] += term
-        sh[v] = 1 / c[v] #sh
-        I[v] = alfa * sh[v] + core_values[v]
-
-    for v in G:
-        neighbors = neighborhood(G, v, level=1)
-        for u in neighbors:
-            C[v] += (I[v] + I[u])
-
-    for v in G:
-        neighbors = neighborhood(G, v, level=1)
-        for u in neighbors:
-            IS[v] += C[u]
-
-    for v in G:
-        neighbors = neighborhood(G, v, level=1)
-        for u in neighbors:
-            SHKS[v] += IS[u] * math.exp(distances[v,u])
-
-    # sorting in descending order the nodes based on their NLC index  values
-    SHKS = dict(sorted(SHKS.items(), key=operator.itemgetter(1), reverse=True))
-    # returning top 10 influential nodes
-    k = args.top
-    return list(SHKS.keys())[:k]
-
-
-# ---------------------------------------------------------------
+# def bf_num_spaths(G):
+#     n_spaths = dict.fromkeys(G, 0.0)
+#     for source in G:
+#         for target in G:
+#             if source == target:
+#                 continue
+#             for path in nx.all_shortest_paths(G, source, target):
+#                 for node in path[1:]: # ignore firs element (source == node)
+#                     n_spaths[node] += 1 # this path passes through `node`
+#     return n_spaths
 #
-# KDEC algorithm to obtain the k top nodes in the
-# ranking obtained.
-# @param: args - arguments from command line
-# Prints the top K influential nodes in the graph
-# ---------------------------------------------------------------
-def kdec(args):
-    G = load_graph(args.input)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    # Computing degrees
-    degrees = {node: deg for (node, deg) in G.degree()}
-    # Computing weights
-    weights = {key: core_values[key] * degrees[key] for key in core_values}
-    # KDEC structure
-    kdec = dict.fromkeys(core_values.keys(), 0.0);
-    for i in G:
-        neighbors = neighborhood(G, i, level=1)
-        for j in neighbors:
-            eff_ij = (1 - math.log(1 / degrees[j]))
-            kdec[i] += ((weights[i] * weights[j]) / (math.pow(eff_ij, 2)))
-    # sorting in descending order the nodes based on their values
-    kdec = dict(sorted(kdec.items(), key=operator.itemgetter(1), reverse=True))
-    # returning top 10 influential nodes
-    k = args.top
-    return list(kdec.keys())[:k]
-
-# ---------------------------------------------------------------
 #
-# KDEC algorithm version which considers the embedding nodes too.
-# @param: args - arguments from command line
-# Prints the top K influential nodes in the graph
-# ---------------------------------------------------------------
-def nlc_kdec(args):
-    G = load_graph(args.input)
-    # Using NetMF embedding from karateclub module
-    logger.info("NetMF embedding of network in %s dataset", args.input)
-    start_time1 = time.time()
-    model = ne.NetMF()
-    model.fit(G)
-    embedding = model.get_embedding()
-    logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
-    G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Precomputing euclidean distances between nodes in embedding
-    distances = precomputing_euclidean(G, embedding)
-    # Computing k-core value of each node
-    core_values = compute_k_core_values(G)
-    # Computing degrees
-    degrees = {node: deg for (node, deg) in G.degree()}
-    # Computing weights
-    weights = {key: core_values[key] * degrees[key] for key in core_values}
-    # print(weights)
-    # KDEC structure
-    nlckdec = dict.fromkeys(core_values.keys(), 0.0)
-    for i in G:
-        neighbors = neighborhood(G, i, level=1)
-        for j in neighbors:
-            eff_ij = (1 - math.log(1 / degrees[j]))
-            nlckdec[i] += ((weights[i] * weights[j]) / (math.pow(eff_ij, 2))) * math.exp(distances[i,j])
-
-    # sorting in descending order the nodes based on their values
-    nlckdec = dict(sorted(nlckdec.items(), key=operator.itemgetter(1), reverse=True))
-    # returning top 10 influential nodes
-    k = args.top
-    return list(nlckdec.keys())[:k]
+# def nlc_shks(args):
+#     G = load_graph(args.input)
+#     # Using NetMF embedding from karateclub module
+#     logger.info("NetMF embedding of network in %s dataset", args.input)
+#     start_time1 = time.time()
+#     model = ne.NetMF()
+#     model.fit(G)
+#     embedding = model.get_embedding()
+#     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+#     G.remove_edges_from(list(nx.selfloop_edges(G)))
+#     # Precomputing euclidean distances between nodes in embedding
+#     distances = precomputing_euclidean(G, embedding)
+#     # Computing k-core value of each node
+#     core_values = compute_k_core_values(G)
+#     # Computing degree for each node
+#     degrees = {node: val for (node, val) in G.degree()}
+#     # Computing average node stress
+#     S = statistics.mean(list(bf_num_spaths(G).values()))
+#     alfa = 0.0000154 * S + 22.34
+#     c = dict.fromkeys(core_values.keys(), 0)
+#     sh = dict.fromkeys(core_values.keys(), 0)
+#     I = dict.fromkeys(core_values.keys(), 0)
+#     C = dict.fromkeys(core_values.keys(), 0)
+#     IS = dict.fromkeys(core_values.keys(), 0)
+#     SHKS = dict.fromkeys(core_values.keys(), 0)
+#     for v in G:
+#         neighbors = neighborhood(G, v, level=1)
+#         for u in neighbors:
+#             pvu = 1 / (len(neighbors.keys()) )
+#             neighbors2 = neighborhood(G, u, level=1)
+#             intersection = {i: neighbors[i] for i in set(neighbors.keys()).intersection(set(neighbors2.keys()))}
+#             second_factor = 0
+#             for w in intersection:
+#                 neighbors3 = neighborhood(G, w, level=1)
+#                 pvw = 1 / (len(neighbors.keys()))
+#                 pwu = 1 / (len(neighbors3.keys()))
+#                 second_factor += pvw * pwu
+#             term = math.pow(pvu + second_factor, 2)
+#             c[v] += term
+#         sh[v] = 1 / c[v] #sh
+#         I[v] = alfa * sh[v] + core_values[v]
+#
+#     for v in G:
+#         neighbors = neighborhood(G, v, level=1)
+#         for u in neighbors:
+#             C[v] += (I[v] + I[u])
+#
+#     for v in G:
+#         neighbors = neighborhood(G, v, level=1)
+#         for u in neighbors:
+#             IS[v] += C[u]
+#
+#     for v in G:
+#         neighbors = neighborhood(G, v, level=1)
+#         for u in neighbors:
+#             SHKS[v] += IS[u] * math.exp(distances[v,u])
+#
+#     # sorting in descending order the nodes based on their NLC index  values
+#     SHKS = dict(sorted(SHKS.items(), key=operator.itemgetter(1), reverse=True))
+#     # returning top 10 influential nodes
+#     k = args.top
+#     return list(SHKS.keys())[:k]
+#
+#
+# # ---------------------------------------------------------------
+# #
+# # KDEC algorithm to obtain the k top nodes in the
+# # ranking obtained.
+# # @param: args - arguments from command line
+# # Prints the top K influential nodes in the graph
+# # ---------------------------------------------------------------
+# def kdec(args):
+#     G = load_graph(args.input)
+#     # Computing k-core value of each node
+#     core_values = compute_k_core_values(G)
+#     # Computing degrees
+#     degrees = {node: deg for (node, deg) in G.degree()}
+#     # Computing weights
+#     weights = {key: core_values[key] * degrees[key] for key in core_values}
+#     # KDEC structure
+#     kdec = dict.fromkeys(core_values.keys(), 0.0);
+#     for i in G:
+#         neighbors = neighborhood(G, i, level=1)
+#         for j in neighbors:
+#             eff_ij = (1 - math.log(1 / degrees[j]))
+#             kdec[i] += ((weights[i] * weights[j]) / (math.pow(eff_ij, 2)))
+#     # sorting in descending order the nodes based on their values
+#     kdec = dict(sorted(kdec.items(), key=operator.itemgetter(1), reverse=True))
+#     # returning top 10 influential nodes
+#     k = args.top
+#     return list(kdec.keys())[:k]
+#
+# # ---------------------------------------------------------------
+# #
+# # KDEC algorithm version which considers the embedding nodes too.
+# # @param: args - arguments from command line
+# # Prints the top K influential nodes in the graph
+# # ---------------------------------------------------------------
+# def nlc_kdec(args):
+#     G = load_graph(args.input)
+#     # Using NetMF embedding from karateclub module
+#     logger.info("NetMF embedding of network in %s dataset", args.input)
+#     start_time1 = time.time()
+#     model = ne.NetMF()
+#     model.fit(G)
+#     embedding = model.get_embedding()
+#     logger.info("NetMF embedding in %s seconds" % (time.time() - start_time1))
+#     G.remove_edges_from(list(nx.selfloop_edges(G)))
+#     # Precomputing euclidean distances between nodes in embedding
+#     distances = precomputing_euclidean(G, embedding)
+#     # Computing k-core value of each node
+#     core_values = compute_k_core_values(G)
+#     # Computing degrees
+#     degrees = {node: deg for (node, deg) in G.degree()}
+#     # Computing weights
+#     weights = {key: core_values[key] * degrees[key] for key in core_values}
+#     # print(weights)
+#     # KDEC structure
+#     nlckdec = dict.fromkeys(core_values.keys(), 0.0)
+#     for i in G:
+#         neighbors = neighborhood(G, i, level=1)
+#         for j in neighbors:
+#             eff_ij = (1 - math.log(1 / degrees[j]))
+#             nlckdec[i] += ((weights[i] * weights[j]) / (math.pow(eff_ij, 2))) * math.exp(distances[i,j])
+#
+#     # sorting in descending order the nodes based on their values
+#     nlckdec = dict(sorted(nlckdec.items(), key=operator.itemgetter(1), reverse=True))
+#     # returning top 10 influential nodes
+#     k = args.top
+#     return list(nlckdec.keys())[:k]
 
 
 # def gravity_model_modified(args):
@@ -693,9 +699,6 @@ if __name__ == "__main__":
                         help="#nodes top nodes")
     parser.add_argument("--level", default=3, type=int,
                         help="level of node's neighborhood")
-    parser.add_argument('--nlc', dest="nlc", action="store_true",
-                        help="using NLC to compute influence of nodes")
-    parser.set_defaults(nlc=False)
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO,
@@ -739,6 +742,7 @@ if __name__ == "__main__":
         output = args.input.removesuffix('.gml')
     if ".txt" in args.input:
         output = args.input.removesuffix('.txt')
+        output = output + "-out"
     if ".mat" in args.input:
         output = args.input.removesuffix('.mat')
 

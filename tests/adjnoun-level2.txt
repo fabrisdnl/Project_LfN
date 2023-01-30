@@ -1,0 +1,10 @@
+SIR
+18 3 52 44 105 25 51 28 10 26 
+NLC
+21 66 51 26 17 24 43 27 54 48 
+Right nodes: 2
+Right nodes with increment: 5
+NLC KSD
+2 15 17 21 26 27 43 51 66 104 2 15 17 21 26 27 43 51 66 104 
+Right nodes: 0
+Right nodes with increment: 6
